@@ -2840,6 +2840,13 @@ int asus_sd(const char *device_name, const char *action){
 		nvram_unset(buf1);
 		nvram_unset(strcat_r(buf1, "_label", tmp));
 
+		snprintf(nvram_value, 32, "%s", nvram_safe_get("usb_modem_act_reset_path"));
+		if(!strcmp(nvram_value, usb_node)){
+			usb_dbg("(%s): the device is resetting...(%s)\n", device_name, action);
+			file_unlock(isLock);
+			return 0;
+		}
+
 		if(get_path_by_node(usb_node, port_path, 8) == NULL){
 			usb_dbg("(%s): Fail to get usb path.\n", usb_node);
 			file_unlock(isLock);
@@ -3485,9 +3492,6 @@ int asus_tty(const char *device_name, const char *action){
 				modprobe_r("cdc-acm");
 				++retry;
 			}
-
-			// Notify wanduck to switch the wan line to WAN port.
-			kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
 		}
 
 		if(strlen(usb_node) > 0){
@@ -3714,9 +3718,6 @@ usb_dbg("Didn't support the USB connection now...\n");
 	}
 #endif
 
-	// Notify wanduck that DUT can switch the wan line to the USB Modem.
-	kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
-
 	usb_dbg("(%s): Success!\n", device_name);
 	file_unlock(isLock_tty);
 	file_unlock(isLock);
@@ -3916,15 +3917,13 @@ int asus_usb_interface(const char *device_name, const char *action){
 				nvram_unset("usb_modem_act_vid");
 				nvram_unset("usb_modem_act_pid");
 				nvram_unset(tmp);
-
-				// Notify wanduck to switch the wan line to WAN port.
-				kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
 			}
 #endif
 
 			snprintf(conf_file, 32, "%s.%s", USB_MODESWITCH_CONF, port_path);
 			unlink(conf_file);
 
+#ifndef RT4GAC55U
 			// When ACM dongles are removed, there are no removed hotplugs of ttyACM nodes.
 			if(!strncmp(buf, "ttyACM", 6)){
 				// No methods let DUT restore the normal state after removing the ACM dongle.
@@ -3932,6 +3931,7 @@ int asus_usb_interface(const char *device_name, const char *action){
 				file_unlock(isLock);
 				return 0;
 			}
+#endif
 		}
 #endif
 
@@ -4082,9 +4082,6 @@ int asus_usb_interface(const char *device_name, const char *action){
 		nvram_set("usb_modem_act_vid", buf);
 		snprintf(buf, 128, "%u",  pid);
 		nvram_set("usb_modem_act_pid", buf);
-
-		// Notify wanduck that DUT can switch the wan line to the USB Modem.
-		kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
 	}
 	else if(is_gct_dongle(1, vid, pid)){
 		// need to run one time and fillfull the nvram: usb_path%d_act.
@@ -4096,9 +4093,6 @@ int asus_usb_interface(const char *device_name, const char *action){
 		nvram_set("usb_modem_act_vid", buf);
 		snprintf(buf, 128, "%u",  pid);
 		nvram_set("usb_modem_act_pid", buf);
-
-		// Notify wanduck that DUT can switch the wan line to the USB Modem.
-		kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
 	}
 	else
 #endif

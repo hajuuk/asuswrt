@@ -15,7 +15,9 @@ ifconfig
 echo ">"
 lsmod
 echo ">"
-nvram show|grep firm
+nvram get firmver
+echo ">"
+nvram get buildno
 echo ">"
 nvram show|grep extendno
 echo ">"

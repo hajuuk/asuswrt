@@ -847,7 +847,7 @@ function pass_checked(obj){
 									<input type="radio" name="wan_upnp_enable" class="input" value="1" onclick="return change_common_radio(this, 'LANHostConfig', 'wan_upnp_enable', '1')" <% nvram_match("wan_upnp_enable", "1", "checked"); %>><#checkbox_Yes#>
 									<input type="radio" name="wan_upnp_enable" class="input" value="0" onclick="return change_common_radio(this, 'LANHostConfig', 'wan_upnp_enable', '0')" <% nvram_match("wan_upnp_enable", "0", "checked"); %>><#checkbox_No#>
 								</td>
-							</tr>			
+							</tr>										
 						</table>
 
 						<table id="IPsetting" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
@@ -1016,7 +1016,13 @@ function pass_checked(obj){
 		</select>
 		</td>
 		</tr>
-
+		<tr>
+			<th><a class="hintstyle" href="javascript:void(0);" onClick=""><#Extend_TTL_Value#></a></th>
+				<td>
+					<input type="radio" name="ttl_inc_enable" class="input" value="1" <% nvram_match("ttl_inc_enable", "1", "checked"); %>><#checkbox_Yes#>
+					<input type="radio" name="ttl_inc_enable" class="input" value="0" <% nvram_match("ttl_inc_enable", "0", "checked"); %>><#checkbox_No#>
+				</td>
+		</tr>	
 		</table>
 	  <div class="apply_gen" style="height:auto">
 			<input class="button_gen" onclick="applyRule();" type="button" value="<#CTL_apply#>"/>

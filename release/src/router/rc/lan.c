@@ -2051,6 +2051,7 @@ void hotplug_net(void)
 	char device_path[128], usb_path[PATH_MAX], usb_node[32], port_path[8];
 	char nvram_name[32];
 	char word[PATH_MAX], *next;
+	char modem_type[8];
 #endif
 
 	if (!(interface = getenv("INTERFACE")) ||
@@ -2204,9 +2205,9 @@ NEITHER_WDS_OR_PSTA:
 				sleep(1);
 			}
 
-			snprintf(buf, 32, "%s", nvram_safe_get("usb_modem_act_type"));
-			_dprintf("hotplug net: usb_modem_act_type=%s.\n", buf);
-			if(!strcmp(buf, "mbim")){
+			snprintf(modem_type, 8, "%s", nvram_safe_get("usb_modem_act_type"));
+			_dprintf("hotplug net: usb_modem_act_type=%s.\n", modem_type);
+			if(!strcmp(modem_type, "mbim")){
 				_dprintf("hotplug net(%s): skip the MBIM interface.\n", interface);
 				return;
 			}
@@ -2266,9 +2267,18 @@ NEITHER_WDS_OR_PSTA:
 				}
 			}
 
+			if(nvram_get_int("usb_modem_act_reset") != 0){
+				logmessage("hotplug", "Modem had been reset and woken up net %s.", interface);
+				_dprintf("hotplug net(%s) had been reset and woken up.\n", interface);
+				nvram_set("usb_modem_act_reset", "2");
+				return;
+			}
+
 #ifdef RTCONFIG_DUALWAN
 			// avoid the busy time of every start_wan when booting.
 			if(!strcmp(nvram_safe_get("success_start_service"), "0")
+					&& strcmp(modem_type, "rndis") // rndis modem can't get IP when booting.
+					&& strcmp(modem_type, "qmi") // qmi modem often be blocked when booting.
 					&& (unit == WAN_UNIT_FIRST || nvram_match("wans_mode", "lb"))
 					){
 				_dprintf("%s: start_wan_if(%d)!\n", __FUNCTION__, unit);
@@ -2307,9 +2317,6 @@ NEITHER_WDS_OR_PSTA:
 			kill_pidfile_s(dhcp_pid_file, SIGUSR2);
 			kill_pidfile_s(dhcp_pid_file, SIGTERM);
 		}
-
-		// Notify wanduck to switch the wan line to WAN port.
-		kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
 	}
 	// Beceem dongle, ASIX USB to RJ45 converter, ECM.
 	else if(!strncmp(interface, "eth", 3)) {
@@ -2422,9 +2429,6 @@ NEITHER_WDS_OR_PSTA:
 				system("asus_usbbcm usbbcm remove");
 #endif
 		}
-
-		// Notify wanduck to switch the wan line to WAN port.
-		kill_pidfile_s("/var/run/wanduck.pid", SIGUSR2);
 	}
 #ifdef RTCONFIG_USB_BECEEM
 	// WiMAX: madwimax, gctwimax.

@@ -2463,9 +2463,15 @@ static int ej_update_variables(int eid, webs_t wp, int argc, char_t **argv) {
 			}
 #endif
 			if (strlen(action_script) > 0) {
-				memset(notify_cmd, 0, 32);
-				if(strstr(action_script, "_wan_if"))
-					sprintf(notify_cmd, "%s %s", action_script, wan_unit);
+				char *p1, *p2;
+				memset(notify_cmd, 0, sizeof(notify_cmd));
+				if((p1 = strstr(action_script, "_wan_if")))
+				{
+					p1 += 7;
+					strncpy(notify_cmd, action_script, p1 - action_script);
+					p2 = notify_cmd + strlen(notify_cmd);
+					sprintf(p2, " %s%s", wan_unit, p1);
+				}
 				else
 					strncpy(notify_cmd, action_script, 128);
 
@@ -5361,7 +5367,7 @@ apply_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
 		char *system_cmd;
 		system_cmd = websGetVar(wp, "SystemCmd","");
 
-		if(strchr(system_cmd, '&') || strchr(system_cmd, ';') || strchr(system_cmd, '%') || strchr(system_cmd, '|')){
+		if(strchr(system_cmd, '&') || strchr(system_cmd, ';') || strchr(system_cmd, '%') || strchr(system_cmd, '|') || strchr(system_cmd, '\n') || strchr(system_cmd, '\r')){
 			_dprintf("[httpd] Invalid SystemCmd!\n");
 			strcpy(SystemCmd, "");
 		}
@@ -5434,7 +5440,6 @@ apply_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
 		websApply(wp, "Restarting.asp");
 		shutdown(fileno(wp), SHUT_RDWR);
 		nvram_set("restore_defaults", "1");
-		nvram_commit();
 		sys_default();
 		return (0);
 	}

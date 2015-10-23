@@ -1,5 +1,4 @@
 #!/bin/sh
-# $1: ifname.
 # echo "This is a script to enable the modem."
 
 
@@ -11,9 +10,10 @@ modem_roaming_isp=`nvram get modem_roaming_isp`
 modem_roaming_imsi=`nvram get modem_roaming_imsi`
 modem_autoapn=`nvram get modem_autoapn`
 modem_autoapn_imsi=`nvram get modem_autoapn_imsi`
+modem_act_path=`nvram get usb_modem_act_path`
 modem_type=`nvram get usb_modem_act_type`
-act_node1=usb_modem_act_int
-act_node2=usb_modem_act_bulk
+act_node1="usb_modem_act_int"
+act_node2="usb_modem_act_bulk"
 modem_vid=`nvram get usb_modem_act_vid`
 modem_pid=`nvram get usb_modem_act_pid`
 modem_dev=`nvram get usb_modem_act_dev`
@@ -161,15 +161,15 @@ if [ "$modem_type" == "" ]; then
 fi
 
 act_node=
-if [ "$modem_type" == "tty" -o "$modem_type" == "mbim" ]; then
-	if [ "$modem_type" == "tty" -a "$modem_vid" == "6610" ]; then # e.q. ZTE MF637U
-		act_node=$act_node1
-	else
-		act_node=$act_node2
-	fi
-else
+#if [ "$modem_type" == "tty" -o "$modem_type" == "mbim" ]; then
+#	if [ "$modem_type" == "tty" -a "$modem_vid" == "6610" ]; then # e.q. ZTE MF637U
+#		act_node=$act_node1
+#	else
+#		act_node=$act_node2
+#	fi
+#else
 	act_node=$act_node1
-fi
+#fi
 
 modem_act_node=`nvram get $act_node`
 if [ "$modem_act_node" == "" ]; then
@@ -177,7 +177,7 @@ if [ "$modem_act_node" == "" ]; then
 
 	modem_act_node=`nvram get $act_node`
 	if [ "$modem_act_node" == "" ]; then
-		echo "Can't get usb_modem_act_int!"
+		echo "Can't get $act_node!"
 		exit 2
 	fi
 fi
@@ -190,38 +190,99 @@ if [ "$modem_enable" == "0" ]; then
 fi
 
 if [ "$modem_type" == "tty" -o "$modem_type" == "qmi" -o "$modem_type" == "mbim" -o "$modem_type" == "gobi" ]; then
+	nvram_reset=`nvram get modem_act_reset`
+	if [ "$nvram_reset" == "1" -o "$modem_vid" == "6610" -a "$modem_pid" == "644" ]; then
+		# Reset modem.
+		echo "Reset modem."
+		nvram set usb_modem_act_reset=1
+		nvram set usb_modem_act_reset_path="$modem_act_path"
+		at_ret=`$at_lock modem_at.sh '+CFUN=1,1' |grep "OK" 2>/dev/null`
+		if [ "$at_ret" == "OK" ]; then
+			tries=1
+			while [ $tries -le 30 -a "$modem_act_node" != "" ]; do
+				echo "Reset modem: wait the modem to start reseting...$tries"
+				sleep 1
+
+				modem_act_node=`nvram get $act_node`
+				tries=$((tries + 1))
+			done
+			if [ "$modem_act_node" != "" ]; then
+				echo "Reset modem: Fail to reset modem."
+				nvram set usb_modem_act_reset=0
+				nvram set usb_modem_act_reset_path=""
+				exit 5
+			fi
+
+			echo "Reset modem: wait the modem to wake up..."
+			reset_flag=`nvram get usb_modem_act_reset`
+			tries=1
+			while [ $tries -le 30 -a "$reset_flag" != "2" ]; do
+				echo "Reset modem: wait the modem to wake up...$tries"
+				sleep 1
+
+				reset_flag=`nvram get usb_modem_act_reset`
+				tries=$((tries + 1))
+			done
+
+			nvram set usb_modem_act_reset=0
+			nvram set usb_modem_act_reset_path=""
+			if [ "$reset_flag" != "2" ]; then
+				echo "Reset modem: modem can't wake up after reset."
+				exit 5
+			else
+				echo "Reset modem: modem had woken up after reset."
+				if [ "$modem_type" == "qmi" ]; then
+					echo "Reset Sleep 3 seconds to wait modem nodes."
+					sleep 3
+				else
+					echo "Reset Sleep 2 seconds to wait modem nodes."
+					sleep 2
+				fi
+			fi
+
+			find_modem_node.sh
+
+			modem_act_node=`nvram get $act_node`
+			if [ "$modem_act_node" == "" ]; then
+				echo "Reset modem: Can't get usb_modem_act_int after reset."
+				exit 2.1
+			fi
+		else
+			echo "Reset modem: Can't reset modem."
+			nvram set usb_modem_act_reset=0
+			nvram set usb_modem_act_reset_path=""
+			exit 5
+		fi
+	fi
+
 	# Set full functionality
-	nvram set usb_modem_act_reset=0
 	at_ret=`$at_lock modem_at.sh '+CFUN?' |grep "+CFUN: 1" 2>/dev/null`
 	if [ "$at_ret" == "" ]; then
-		echo "set +CFUN=1."
-		nvram set usb_modem_act_reset=1
-		#at_ret=`$at_lock modem_at.sh '+CFUN=1,1' |grep "OK" 2>/dev/null`
+		echo "CFUN: Set full functionality."
 		at_ret=`$at_lock modem_at.sh '+CFUN=1' |grep "OK" 2>/dev/null`
 		if [ "$at_ret" == "OK" ]; then
 			tries=1
 			at_ret=""
 			while [ $tries -le 30 -a "$at_ret" == "" ]; do
-				echo "wait for reset...$tries"
+				echo "CFUN: wait for setting CFUN...$tries"
 				sleep 1
 
 				at_ret=`$at_lock modem_at.sh '+CFUN?' |grep "+CFUN: 1" 2>/dev/null`
 				tries=$((tries + 1))
 			done
-			nvram set usb_modem_act_reset=0
 
 			if [ "$at_ret" == "" ]; then
-				echo "Fail to reset the modem."
+				echo "CFUN: Fail to set full functionality."
 				exit 4
 			fi
 		else
-			echo "Fail to set +CFUN=1."
-			nvram set usb_modem_act_reset=0
+			echo "CFUN: Fail to set +CFUN=1."
 			exit 5
 		fi
 	fi
 
 	# input PIN if need.
+	echo "PIN: detect PIN if it's needed."
 	modem_status.sh sim
 	modem_status.sh simauth
 	ret=`nvram get usb_modem_act_sim`
@@ -254,18 +315,18 @@ if [ "$modem_type" == "tty" -o "$modem_type" == "qmi" -o "$modem_type" == "mbim"
 		at_ret=`$at_lock modem_at.sh '+COPS?' 2>/dev/null`
 		ret=`echo "$at_ret" |grep "COMMAND NOT SUPPORT"`
 		if [ "$ret" == "" ]; then
-			echo "Can execute +COPS..."
-			ret=`echo "$at_ret" |grep "+COPS: 0,"`
+			echo "COPS: Can execute +COPS..."
+			ret=`echo "$at_ret" |grep "+COPS: 0"`
 			if [ "$ret" == "" ]; then
-				echo "set +COPS=0."
+				echo "COPS: set +COPS=0."
 				at_ret=`$at_lock modem_at.sh '+COPS=0' |grep "OK" 2>/dev/null`
 				if [ "$at_ret" != "OK" ]; then
-					echo "Fail to set +COPS=0."
+					echo "COPS: Fail to set +COPS=0."
 					exit 6
 				fi
 			fi
 		else
-			echo "Don't support +COPS."
+			echo "COPS: Don't support +COPS."
 		fi
 
 		if [ "$modem_type" == "gobi" ]; then
@@ -292,13 +353,16 @@ if [ "$modem_type" == "tty" -o "$modem_type" == "qmi" -o "$modem_type" == "mbim"
 	elif [ "$modem_roaming_mode" == "1" ]; then
 		# roaming manually...
 		echo "roaming manually..."
-		modem_status.sh station "$modem_roaming_isp"
-		modem_autoapn.sh set $modem_roaming_imsi
+		if [ -n "$modem_roaming_isp" ]; then
+			modem_status.sh station "$modem_roaming_isp"
+		fi
+		# Don't need to change the modem settings.
+		#modem_autoapn.sh set $modem_roaming_imsi
 
-		modem_isp=`nvram get modem_isp`
-		modem_apn=`nvram get modem_apn`
-		modem_user=`nvram get modem_user`
-		modem_pass=`nvram get modem_pass`
+		#modem_isp=`nvram get modem_isp`
+		#modem_apn=`nvram get modem_apn`
+		#modem_user=`nvram get modem_user`
+		#modem_pass=`nvram get modem_pass`
 	else
 		# roaming automatically...
 		echo "roaming automatically..."
@@ -307,11 +371,11 @@ if [ "$modem_type" == "tty" -o "$modem_type" == "qmi" -o "$modem_type" == "mbim"
 	at_ret=`$at_lock modem_at.sh '+CGATT?' 2>/dev/null`
 	ret=`echo "$at_ret" |grep "COMMAND NOT SUPPORT"`
 	if [ "$ret" == "" ]; then
-		echo "Can execute +CGATT..."
+		echo "CGATT: Can execute +CGATT..."
 		tries=1
 		at_ret=`echo "$at_ret" |grep "+CGATT: 1"`
 		while [ $tries -le 30 -a "$at_ret" == "" ]; do
-			echo "wait for network registered...$tries"
+			echo "CGATT: wait for network registered...$tries"
 			sleep 1
 
 			at_ret=`$at_lock modem_at.sh '+CGATT?' |grep "+CGATT: 1" 2>/dev/null`
@@ -319,13 +383,13 @@ if [ "$modem_type" == "tty" -o "$modem_type" == "qmi" -o "$modem_type" == "mbim"
 		done
 
 		if [ "$at_ret" == "" ]; then
-			echo "Fail to register network, please check."
+			echo "CGATT: Fail to register network, please check."
 			exit 7
 		else
-			echo "Successfull to register network."
+			echo "CGATT: Successfull to register network."
 		fi
 	else
-		echo "Don't support +CGATT."
+		echo "CGATT: Don't support +CGATT."
 	fi
 fi
 
@@ -422,7 +486,7 @@ elif [ "$modem_type" == "qmi" ]; then
 
 	tries=1
 	at_ret=""
-	while [ $tries -le 15 -a "$at_ret" == "" ]; do
+	while [ $tries -le 30 -a "$at_ret" == "" ]; do
 		echo "QMI: wait for network connecting...$tries"
 		sleep 1
 
@@ -444,12 +508,16 @@ elif [ "$modem_type" == "gobi" ]; then
 
 	gobi_pid=`pidof gobi`
 	if [ "$gobi_pid" != "" ]; then
+		# connect to GobiNet.
+		echo -n "1,$qcqmi," >> $cmd_pipe
+		sleep 1
+
 		# WDS stop the data session
-		echo "4" >> $cmd_pipe
+		echo -n "4" >> $cmd_pipe
 		sleep 1
 
 		# disconnect to GobiNet.
-		echo "2" >> $cmd_pipe
+		echo -n "2" >> $cmd_pipe
 		sleep 1
 
 		killall gobi
@@ -460,27 +528,40 @@ elif [ "$modem_type" == "gobi" ]; then
 	sleep 1
 
 	# connect to GobiNet.
-	echo "1,$qcqmi," >> $cmd_pipe
+	echo -n "1,$qcqmi," >> $cmd_pipe
 	sleep 1
 
 	# set the default profile to auto-connect.
-	modem_isp=`echo $modem_isp |cut -c 1-15`
-	echo "5,$modem_pdp,$modem_isp,$modem_apn,$modem_user,$modem_pass," >> $cmd_pipe
+	echo -n "5,$modem_pdp,$modem_isp,$modem_apn,$modem_user,$modem_pass," >> $cmd_pipe
 	sleep 1
 
 	# WDS set the autoconnect & roaming
 	# autoconnect: 0, disable; 1, enable; 2, pause.
 	# roaming: 0, allow; 1, disable. Only be activated when autoconnect is enabled.
 	if [ "$modem_roaming" != "1" ]; then
-		echo "7,1,1," >> $cmd_pipe
+		echo -n "7,1,1," >> $cmd_pipe
+	elif [ "$modem_roaming_mode" == "1" ]; then
+		echo "roaming manually..."
+		if [ -n "$modem_roaming_isp" ]; then
+			echo -n "7,1,0," >> $cmd_pipe
+		else
+			echo -n "7,0,0," >> $cmd_pipe
+		fi
 	else
-		echo "7,1,0," >> $cmd_pipe
+		echo "roaming automatically..."
+		echo -n "7,1,0," >> $cmd_pipe
 	fi
 	sleep 1
 
 	# WDS start the data session
-	#echo "3" >> $cmd_pipe
+	#echo -n "3" >> $cmd_pipe
 	#sleep 3
+
+	echo -n "2" >> $cmd_pipe
+	sleep 1
+
+	killall gobi
+	sleep 1
 
 	modem_status.sh rate
 	modem_status.sh band

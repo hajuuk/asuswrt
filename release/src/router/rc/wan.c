@@ -1322,24 +1322,6 @@ start_wan_if(int unit)
 				return;
 			}
 
-			/* Since WAN interface may be already turned up (by vlan.c),
-			   if WAN hardware address is specified (and different than the current one),
-			   we need to make it down for synchronizing hwaddr. */
-			if(ioctl(s, SIOCGIFHWADDR, &ifr)){
-				close(s);
-				update_wan_state(prefix, WAN_STATE_STOPPED, WAN_STOPPED_REASON_SYSTEM_ERR);
-				return;
-			}
-
-			if(nvram_match(strcat_r(prefix, "hwaddr", tmp), "")
-					|| !ether_atoe(nvram_safe_get(tmp), ifr.ifr_hwaddr.sa_data)
-					|| !memcmp(ifr.ifr_hwaddr.sa_data, "\0\0\0\0\0\0", ETHER_ADDR_LEN))
-				nvram_set(tmp, ether_etoa(ifr.ifr_hwaddr.sa_data, eabuf));
-			else{
-				ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
-				ioctl(s, SIOCSIFHWADDR, &ifr);
-			}
-
 			if(ioctl(s, SIOCGIFFLAGS, &ifr)){
 				close(s);
 				TRACE_PT("Couldn't read the flags of %s!\n", wan_ifname);
@@ -1901,14 +1883,20 @@ stop_wan_if(int unit)
 #endif	/* RTCONFIG_USB_BECEEM */
 
 #if defined(RT4GAC55U)
+#if 0
 #define SLEEP(s) {int sec = s; while((sec = sleep(sec)) > 0) /* cprintf(" intr(%d)\n", sec)*/ ; }
 		for(i = 0; i < 3 && pidof("gobi") > 0; i++)
 		{
 #define GOBI_PIPE_PATH "/tmp/pipe"
 			cprintf("stop gobi %d\n", i);
-			f_write(GOBI_PIPE_PATH,  "4\n2\n99\n", 7, FW_APPEND, 0);	//disconnect and terminal gobi process.
+			f_write(GOBI_PIPE_PATH,  "1\n4\n2\n99\n", 9, FW_APPEND, 0);	//disconnect and terminal gobi process.
 			SLEEP(2);
 		}
+#else
+		char *const modem_argv[] = {"modem_stop.sh", NULL};
+
+		_eval(modem_argv, ">>/tmp/usb.log", 0, NULL);
+#endif
 #endif
 	}
 
@@ -2372,6 +2360,7 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 #ifdef RTCONFIG_USB_MODEM
 #ifdef RT4GAC55U
 	if(dualwan_unit__usbif(wan_unit)){
+		eval("modem_status.sh", "operation");
 		eval("modem_status.sh", "bytes+");
 	}
 #endif
@@ -2422,7 +2411,7 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 		if(debug) dbg("[wan up] enabled= %d\n", enabled);
 
 		if(enabled){
-			_dprintf("[wan up] do dpi engine start\n");
+			_dprintf("[%s] do dpi engine service ... \n", __FUNCTION__);
 			// if Adaptive QoS or AiProtection is enabled
 			int count = 0;
 			int val = 0;
@@ -2436,7 +2425,12 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 			if(debug) dbg("[wan up] found_default_route result: %d\n", val);
 
 			if(val){
-				stop_dpi_engine_service(0);
+				// if restart_wan_if, remove dpi engine related
+				if(f_exists("/dev/detector") || f_exists("/dev/idpfw")){
+					_dprintf("[%s] stop dpi engine service\n", __FUNCTION__);
+					stop_dpi_engine_service(1);
+				}
+				_dprintf("[%s] start dpi engine service\n", __FUNCTION__);
 				start_dpi_engine_service();
 				start_firewall(wan_unit, 0);
 			}
@@ -2781,7 +2775,7 @@ start_wan(void)
 	start_wan_if(WAN_UNIT_FIRST);
 
 #ifdef RTCONFIG_USB_MODEM
-	if (is_usb_modem_ready() == 1) {
+	if(is_usb_modem_ready() == 1 && nvram_get_int("success_start_service") == 1){
 		_dprintf("%s: start_wan_if(%d)!\n", __FUNCTION__, WAN_UNIT_SECOND);
 		start_wan_if(WAN_UNIT_SECOND);
 	}

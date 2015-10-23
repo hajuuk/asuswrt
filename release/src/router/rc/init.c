@@ -766,6 +766,8 @@ restore_defaults(void)
 	char prefix[] = "usb_pathXXXXXXXXXXXXXXXXX_", tmp[100];
 	int unit;
 
+	nvram_unset(ASUS_STOP_COMMIT);
+
 	// Restore defaults if nvram version mismatch
 	restore_defaults = RESTORE_DEFAULTS();
 
@@ -975,6 +977,8 @@ restore_defaults(void)
 #endif
 
 	clean_modem_state(1);
+	nvram_unset("usb_modem_act_reset"); // only be unset at boot.
+	nvram_unset("usb_modem_act_reset_path"); // only be unset at boot.
 
 	for(i = 0; i < MAX_USB_TTY_NUM; ++i) { // MAX ttyUSB number is 10.
 		snprintf(prefix, sizeof(prefix), "usb_path_ttyUSB%d", i);
@@ -1655,7 +1659,6 @@ int init_nvram(void)
 #endif
 
 	/* set default value */
-	nvram_unset(ASUS_STOP_COMMIT);
 	nvram_set("rc_support", "");
 	nvram_set_int("btn_rst_gpio", 0xff);
 	nvram_set_int("btn_wps_gpio", 0xff);
@@ -1902,7 +1905,7 @@ int init_nvram(void)
 
 		if (nvram_get("wl_mssid") && nvram_match("wl_mssid", "1"))
 		add_rc_support("mssid");
-		add_rc_support("2.4G 5G update usbX2");
+		add_rc_support("2.4G 5G usbX2");
 		add_rc_support("rawifi");
 		add_rc_support("switchctrl");
 		add_rc_support("manual_stb");
@@ -2159,7 +2162,7 @@ int init_nvram(void)
 
 		if (nvram_get("wl_mssid") && nvram_match("wl_mssid", "1"))
 		add_rc_support("mssid");
-		add_rc_support("2.4G 5G update usbX2");
+		add_rc_support("2.4G 5G usbX2");
 		add_rc_support("rawifi");
 		add_rc_support("dsl");
 #if defined(RTCONFIG_WIRELESS_SWITCH) || defined(RTCONFIG_WIFI_TOG_BTN)
@@ -2477,7 +2480,7 @@ int init_nvram(void)
 		nvram_set("ohci_ports", "2-1");
 		if (!nvram_get("ct_max"))
 			nvram_set("ct_max", "15000");
-		add_rc_support("2.4G update mssid usbX1 nomedia");
+		add_rc_support("2.4G mssid usbX1 nomedia");
 		add_rc_support("switchctrl"); // broadcom: for jumbo frame only
 		add_rc_support("manual_stb");
 		break;
@@ -2587,7 +2590,7 @@ int init_nvram(void)
 		if (!nvram_get("ct_max"))
 			nvram_set("ct_max", "2048");
 
-		add_rc_support("2.4G 5G update mssid no5gmssid small_fw");
+		add_rc_support("2.4G 5G mssid no5gmssid small_fw");
 #ifdef RTCONFIG_WLAN_LED
 		add_rc_support("led_2g");
 		nvram_set("led_5g", "1");
@@ -3591,7 +3594,7 @@ int init_nvram(void)
 		nvram_set("ohci_ports", "2-1");
 		if (!nvram_get("ct_max"))
 			nvram_set("ct_max", "2048");
-		add_rc_support("2.4G mssid usbX1 update nomedia small_fw");
+		add_rc_support("2.4G mssid usbX1 nomedia small_fw");
 		break;
 
 	case MODEL_RTN10P:
@@ -3668,8 +3671,6 @@ int init_nvram(void)
 #ifdef RTCONFIG_KYIVSTAR
 		add_rc_support("kyivstar");
 #endif
-		if (model == MODEL_RTN10PV2)
-			add_rc_support("update");
 		break;
 	case MODEL_RTAC53U:
 		nvram_set("lan_ifname", "br0");

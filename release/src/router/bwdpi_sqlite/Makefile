@@ -8,7 +8,7 @@ CFLAGS += -idirafter$(LINUXDIR)/arch/arm/include -idirafter$(LINUXDIR)/include
 LDFLAGS += $(EXTRALDFLAGS2)
 LDFLAGS += -L$(TOP)/bwdpi -lbwdpi
 LDFLAGS += -L$(TOP)/sqlite/.libs -lsqlite3
-#LDFLAGS += -lpthread
+LDFLAGS += -lpthread
 
 ifeq ($(RTCONFIG_QTN),y)
 CFLAGS += -I$(TOP)/libqcsapi_client

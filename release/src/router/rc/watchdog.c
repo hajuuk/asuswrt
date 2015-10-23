@@ -309,7 +309,6 @@ void btn_check(void)
 					led_control(0, 0);
 					alarmtimer(0, 0);
 					nvram_set("restore_defaults", "1");
-					nvram_commit();
 					if (notify_rc_after_wait("resetdefault")) {
 						/* Send resetdefault rc_service failed. */
 						alarmtimer(NORMAL_PERIOD, 0);
@@ -351,7 +350,6 @@ void btn_check(void)
 					led_control(LED_POWER, LED_OFF);
 					alarmtimer(0, 0);
 					nvram_set("restore_defaults", "1");
-					nvram_commit();
 					if(notify_rc_after_wait("resetdefault")) {
 						/* Send resetdefault rc_service failed. */
 						alarmtimer(NORMAL_PERIOD, 0);
@@ -427,6 +425,7 @@ void btn_check(void)
 		{
 			led_control(LED_POWER, LED_OFF);
 			alarmtimer(0, 0);
+			nvram_set("restore_defaults", "1");
 			if (notify_rc_after_wait("resetdefault")) {
 				/* Send resetdefault rc_service failed. */
 				alarmtimer(NORMAL_PERIOD, 0);

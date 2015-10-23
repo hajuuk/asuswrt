@@ -3276,7 +3276,7 @@ int gen_ralink_config(int band, int is_iNIC)
 
 
 		fprintf(fp, "ApCliEnable=0\n");
-		fprintf(fp, "ApCliSsid=%s\n", nvram_safe_get("wlc_ssid"));
+		fprintf(fp, "ApCliSsid%d=%s\n", 1, nvram_safe_get("wlc_ssid"));
 		fprintf(fp, "ApCliBssid=\n");
 
 		str = nvram_safe_get("wlc_auth_mode");
@@ -3307,7 +3307,7 @@ int gen_ralink_config(int band, int is_iNIC)
 					fprintf(fp, "ApCliEncrypType=%s\n", "AES");
 
 				//WPAPSK
-				fprintf(fp, "ApCliWPAPSK=%s\n", nvram_safe_get("wlc_wpa_psk"));
+				fprintf(fp, "ApCliWPAPSK%d=%s\n", 1, nvram_safe_get("wlc_wpa_psk"));
 			}
 			else
 			{

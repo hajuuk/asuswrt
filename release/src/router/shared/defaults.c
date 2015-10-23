@@ -1964,6 +1964,7 @@ struct nvram_tuple router_defaults[] = {
 #endif
 	{ "custom_clientlist",		""},		/* for customize device name */
 	{ "nmp_client_list",		""},
+	{ "ttl_inc_enable",		"0"},		/* enable TTL increment */
 	{ NULL, NULL }
 };
 
