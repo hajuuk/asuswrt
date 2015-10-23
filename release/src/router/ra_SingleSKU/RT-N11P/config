@@ -8,3 +8,5 @@ SKU_5G_CE   =
 SKU_5G_SG   =
 SKU_2G_AU   =
 SKU_5G_AU   =
+SKU_2G_CN   = "20141219_SingleSKU_CN_SRRC_2.4G_Final.dat"
+SKU_5G_CN   =

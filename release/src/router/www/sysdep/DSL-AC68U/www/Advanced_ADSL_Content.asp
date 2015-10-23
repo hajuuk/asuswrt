@@ -36,13 +36,92 @@ function valid_form(){
 }
 
 function change_dla(enable){
-	if(enable == "1") {
-		document.form.dslx_snrm_offset.disabled = true;
+	if(enable == "1") {	//Enable
+		document.form.dslx_snrm_offset.style.display = "none";
+		document.form.dslx_snrm_offset.disabled = true;		
+		document.getElementById("dslx_snrm_offset_read").style.display = "";
+		document.getElementById("dslx_snrm_offset_read").innerHTML = get_snrm_offset();
 	}
 	else {
+		document.form.dslx_snrm_offset.style.display = "";
 		document.form.dslx_snrm_offset.disabled = false;
+		document.getElementById("dslx_snrm_offset_read").style.display = "none";
 	}
 }
+
+function get_snrm_offset(){
+	var offset_ori = "<% nvram_get("dslx_snrm_offset"); %>";
+	switch(offset_ori){
+		case "0":
+					return "<#btn_Disabled#>";
+					break;
+		case "5120":
+					return "10 dB";
+					break;
+		case "4608":
+					return "9 dB";
+					break;
+		case "4096":
+					return "8 dB";
+					break;
+		case "3584":
+					return "7 dB";
+					break;
+		case "3072":
+					return "6 dB";
+					break;
+		case "2560":
+					return "5 dB";
+					break;
+		case "2048":
+					return "4 dB";
+					break;
+		case "1536":
+					return "3 dB";
+					break;
+		case "1024":
+					return "2 dB";
+					break;
+		case "512":
+					return "1 dB";
+					break;
+		case "-512":
+					return "-1 dB";
+					break;
+		case "-1024":
+					return "-2 dB";
+					break;
+		case "-1536":
+					return "-3 dB";
+					break;
+		case "-2048":
+					return "-4 dB";
+					break;
+		case "-2560":
+					return "-5 dB";
+					break;
+		case "-3072":
+					return "-6 dB";
+					break;
+		case "-3584":
+					return "-7 dB";
+					break;
+		case "-4096":
+					return "-8 dB";
+					break;
+		case "-4608":
+					return "-9 dB";
+					break;
+		case "-5120":
+					return "-10 dB";
+					break;
+		default:
+					return "<#btn_Disabled#>";
+					break;
+	}
+
+}
+
 </script>
 </head>
 
@@ -134,7 +213,7 @@ function change_dla(enable){
 						<option value="3" <% nvram_match("dslx_annex", "3", "selected"); %>>Annex M</option>
 						<option value="4" <% nvram_match("dslx_annex", "4", "selected"); %>>Annex A/I/J/L/M</option>
 						<option value="5" <% nvram_match("dslx_annex", "5", "selected"); %>>Annex B</option>
-						<option value="6" <% nvram_match("dslx_annex", "6", "selected"); %>>Annex B/J/M</option>
+						<option value="6" <% nvram_match("dslx_annex", "6", "selected"); %>>Annex B/J</option>
 					</select>
 				</td>
 			</tr>
@@ -154,7 +233,8 @@ function change_dla(enable){
 					<a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,1);">Stability Adjustment (ADSL)</a>
 				</th>
 				<td>
-					<select id="" class="input_option" name="dslx_snrm_offset">
+					<span id="dslx_snrm_offset_read" name="dslx_snrm_offset_read" style="display:none;color:#FFFFFF;"></span>
+					<select id="dslx_snrm_offset" class="input_option" name="dslx_snrm_offset" style="display:none;">
 						<option value="0" <% nvram_match("dslx_snrm_offset", "0", "selected"); %>><#btn_Disabled#></option>
 						<option value="5120" <% nvram_match("dslx_snrm_offset", "5120", "selected"); %>>10 dB</option>
 						<option value="4608" <% nvram_match("dslx_snrm_offset", "4608", "selected"); %>>9 dB</option>
@@ -179,6 +259,20 @@ function change_dla(enable){
 					</select>
 				</td>
 			</tr>
+
+			<tr>
+				<th>
+					<a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,13);">Rx AGC GAIN Adjustment (ADSL)</a>
+				</th>
+				<td>
+					<select id="" class="input_option" name="dslx_adsl_rx_agc">
+						<option value="Default" <% nvram_match("dslx_adsl_rx_agc", "Default", "selected"); %>>Default</option>
+						<option value="Stable" <% nvram_match("dslx_adsl_rx_agc", "Stable", "selected"); %>>Stable</option>
+						<option value="High Performance" <% nvram_match("dslx_adsl_rx_agc", "High Performance", "selected"); %>>High Performance</option>
+					</select>
+				</td>
+			</tr>
+
 			<tr>
 				<th>
 					<a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,4);">Stability Adjustment (VDSL)</a>
@@ -313,7 +407,7 @@ function change_dla(enable){
 			</tr>
 			<tr>
 				<th>
-					G.INP (G.998.4)
+					<a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,11);">G.INP (G.998.4)</a>
 				</th>
 				<td>
 					<select id="" class="input_option" name="dslx_ginp">

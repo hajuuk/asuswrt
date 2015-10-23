@@ -1324,7 +1324,7 @@ function pass_checked(obj){
 											<a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,4);"><#PPPConnection_UserName_itemname#></a>
 										</th>
 										<td>
-											<input type="text" maxlength="64" class="input_32_table" name="dslx_pppoe_username" value="<% nvram_get("dslx_pppoe_username"); %>" onkeypress="return validator.isString(this, event)" onblur="">
+											<input type="text" maxlength="64" class="input_32_table" name="dslx_pppoe_username" value="<% nvram_get("dslx_pppoe_username"); %>" onkeypress="return validator.isString(this, event)" onblur="" autocapitalization="off" autocomplete="off">
 										</td>
 							
 										<tr>
@@ -1332,7 +1332,7 @@ function pass_checked(obj){
 												<a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,5);"><#PPPConnection_Password_itemname#></a>
 											</th>
 											<td>
-												<div style="margin-top:2px;"><input type="password" maxlength="64" class="input_32_table" id="dslx_pppoe_passwd" name="dslx_pppoe_passwd" value="<% nvram_get("dslx_pppoe_passwd"); %>"></div>
+												<div style="margin-top:2px;"><input type="password" maxlength="64" class="input_32_table" id="dslx_pppoe_passwd" name="dslx_pppoe_passwd" value="<% nvram_get("dslx_pppoe_passwd"); %>" autocapitalization="off" autocomplete="off"></div>
 												<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.form.dslx_pppoe_passwd);"><#QIS_show_pass#></div>
 											</td>
 										</tr>

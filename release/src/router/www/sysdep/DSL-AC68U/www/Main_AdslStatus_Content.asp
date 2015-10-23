@@ -23,10 +23,53 @@ wan_proto = '<% nvram_get("wan_proto"); %>';
 var sync_status = "<% nvram_get("dsltmp_adslsyncsts"); %>";
 var adsl_timestamp = "<% nvram_get("adsl_timestamp"); %>";
 var adsl_boottime = boottime - parseInt(adsl_timestamp);
+var adsl_state = "<% nvram_get("dsltmp_adslsyncsts"); %>";
 
 function initial(){
 	show_menu();
-	showadslbootTime();	
+	showadslbootTime();
+	check_adsl_state_up();
+}
+
+function check_adsl_state_up(){
+		if(adsl_state == "up"){
+				document.getElementById("up_uptime").style.display = "";
+				document.getElementById("up_modul").style.display = "";				
+				document.getElementById("up_annex").style.display = "";
+				document.getElementById("up_SNR_down").style.display = "";
+				document.getElementById("up_SNR_up").style.display = "";
+				document.getElementById("up_Line_down").style.display = "";
+				document.getElementById("up_Line_up").style.display = "";
+				document.getElementById("up_wan_mode").style.display = "";
+				document.getElementById("up_rate_down").style.display = "";
+				document.getElementById("up_rate_up").style.display = "";
+				document.getElementById("up_maxrate_down").style.display = "";
+				document.getElementById("up_maxrate_up").style.display = "";
+				document.getElementById("up_power_down").style.display = "";
+				document.getElementById("up_power_up").style.display = "";
+				document.getElementById("up_CRC_down").style.display = "";
+				document.getElementById("up_CRC_up").style.display = "";
+		
+		}
+		else{
+				document.getElementById("up_uptime").style.display = "none";
+				document.getElementById("up_modul").style.display = "none";
+				document.getElementById("up_annex").style.display = "none";
+				document.getElementById("up_SNR_down").style.display = "none";
+				document.getElementById("up_SNR_up").style.display = "none";
+				document.getElementById("up_Line_down").style.display = "none";
+				document.getElementById("up_Line_up").style.display = "none";
+				document.getElementById("up_wan_mode").style.display = "none";
+				document.getElementById("up_rate_down").style.display = "none";
+				document.getElementById("up_rate_up").style.display = "none";
+				document.getElementById("up_maxrate_down").style.display = "none";
+				document.getElementById("up_maxrate_up").style.display = "none";
+				document.getElementById("up_power_down").style.display = "none";
+				document.getElementById("up_power_up").style.display = "none";
+				document.getElementById("up_CRC_down").style.display = "none";
+				document.getElementById("up_CRC_up").style.display = "none";
+				
+		}
 }
 
 function showadslbootTime(){
@@ -119,98 +162,98 @@ function showadslbootTime(){
 							<tr>
 								<th width="20%">DSL <#General_x_SystemUpTime_itemname#></th>
 								<td>
-									<span id="boot_days"></span> <#Day#> <span id="boot_hours"></span> <#Hour#> <span id="boot_minutes"></span> <#Minute#> <span id="boot_seconds"></span> <#Second#>
+									<div id="up_uptime"><span id="boot_days"></span> <#Day#> <span id="boot_hours"></span> <#Hour#> <span id="boot_minutes"></span> <#Minute#> <span id="boot_seconds"></span> <#Second#></div>
 								</td>
 							</tr>
 							
 							<tr>
 								<th width="20%"><#dslsetting_disc1#></th>
 								<td>
-									<% nvram_get("dsllog_opmode"); %>
+									<div id="up_modul"><% nvram_get("dsllog_opmode"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%"><#dslsetting_disc2#></th>
 								<td>
-									<% nvram_get("dsllog_adsltype"); %>
+									<div id="up_annex"><% nvram_get("dsllog_adsltype"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">SNR Down</th>
 								<td>
-									<% nvram_get("dsllog_snrmargindown"); %>
+									<div id="up_SNR_down"><% nvram_get("dsllog_snrmargindown"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">SNR Up</th>
 								<td>
-									<% nvram_get("dsllog_snrmarginup"); %>
+									<div id="up_SNR_up"><% nvram_get("dsllog_snrmarginup"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">Line Attenuation Down</th>
 								<td>
-									<% nvram_get("dsllog_attendown"); %>
+									<div id="up_Line_down"><% nvram_get("dsllog_attendown"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">Line Attenuation Up</th>
 								<td>
-									<% nvram_get("dsllog_attenup"); %>
+									<div id="up_Line_up"><% nvram_get("dsllog_attenup"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">Path Mode</th>
 								<td>
-									<% nvram_get("dsllog_wanlistmode"); %>
+									<div id="up_wan_mode"><% nvram_get("dsllog_wanlistmode"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">Data Rate Down</th>
 								<td>
-									<% nvram_get("dsllog_dataratedown"); %>
+									<div id="up_rate_down"><% nvram_get("dsllog_dataratedown"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">Data Rate Up</th>
 								<td>
-									<% nvram_get("dsllog_datarateup"); %>
+									<div id="up_rate_up"><% nvram_get("dsllog_datarateup"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">MAX Rate Down</th>
 								<td>
-									<% nvram_get("dsllog_attaindown"); %>
+									<div id="up_maxrate_down"><% nvram_get("dsllog_attaindown"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">MAX Rate Up</th>
 								<td>
-									<% nvram_get("dsllog_attainup"); %>
+									<div id="up_maxrate_up"><% nvram_get("dsllog_attainup"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">POWER Down</th>
 								<td>
-									<% nvram_get("dsllog_powerdown"); %>
+									<div id="up_power_down"><% nvram_get("dsllog_powerdown"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">POWER Up</th>
 								<td>
-									<% nvram_get("dsllog_powerup"); %>
+									<div id="up_power_up"><% nvram_get("dsllog_powerup"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">CRC Down</th>
 								<td>
-									<% nvram_get("dsllog_crcdown"); %>
+									<div id="up_CRC_down"><% nvram_get("dsllog_crcdown"); %></div>
 								</td>
 							</tr>
 							<tr>
 								<th width="20%">CRC Up</th>
 								<td>
-									<% nvram_get("dsllog_crcup"); %>
+									<div id="up_CRC_up"><% nvram_get("dsllog_crcup"); %></div>
 								</td>
 							</tr>
 

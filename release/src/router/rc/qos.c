@@ -702,7 +702,7 @@ int add_iQosRules(char *pcWANIF)
 		fprintf(fn_ipv6, "COMMIT\n");
 		fclose(fn_ipv6);
 		chmod(mangle_fn_ipv6, 0700);
-		eval("ip6tables-restore", (char*)mangle_fn_ipv6);
+//		eval("ip6tables-restore", (char*)mangle_fn_ipv6);
 	}
 #endif
 	fprintf(stderr, "[qos] iptables DONE!\n");

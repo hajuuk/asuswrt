@@ -800,7 +800,7 @@ no_match:
 
 char *iprange_ex_conv(char *ip, char *buf)
 {
-	char startip[16], endip[16];
+	char startip[16]; //, endip[16];
 	int i, j, k;
 	int mask;
 
@@ -816,20 +816,20 @@ char *iprange_ex_conv(char *ip, char *buf)
 		if (*(ip+i)=='*')
 		{
 			startip[j++] = '0';
-			endip[k++] = '0';
+//			endip[k++] = '0';
 			// 255 is for broadcast
 			mask-=8;
 		}
 		else
 		{
 			startip[j++] = *(ip+i);
-			endip[k++] = *(ip+i);
+//			endip[k++] = *(ip+i);
 		}
 		++i;
 	}
 
 	startip[j++] = 0;
-	endip[k++] = 0;
+//	endip[k++] = 0;
 
 	if (mask==32)
 		sprintf(buf, "%s", startip);
@@ -1183,6 +1183,10 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 		":YADNS - [0:0]\n");
 #endif
 
+#ifdef RTCONFIG_PARENTALCTRL
+	fprintf(fp,
+		":PCREDIRECT - [0:0]\n");
+#endif
 	_dprintf("writting prerouting %s %s %s %s %s %s\n", wan_if, wan_ip, wanx_if, wanx_ip, lan_if, lan_ip);
 
 	//Log
@@ -1202,6 +1206,12 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 		write_yandexdns_filter(fp, lan_if, lan_ip);
 #endif
 
+#ifdef RTCONFIG_PARENTALCTRL
+	if(nvram_get_int("MULTIFILTER_ALL") != 0 && count_pc_rules() > 0){
+		config_blocking_redirect(fp);
+	}
+#endif
+
 	// need multiple instance for tis?
 	if (nvram_match("misc_http_x", "1"))
 	{
@@ -1218,10 +1228,9 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 	}
 
 #ifdef RTCONFIG_SSH
-	if (nvram_match("sshd_enable", "1") && nvram_get_int("sshd_forwarding"))
+	if (nvram_match("sshd_enable", "1"))
 	{
-		if ((wan_port = nvram_get_int("sshd_rport")) == 0)
-			wan_port = 22;
+		wan_port = nvram_get_int("sshd_port") ? : 22;
 		fprintf(fp, "-A VSERVER -p tcp -m tcp --dport %d -j DNAT --to-destination %s:%s\n",
 			wan_port, lan_ip, nvram_safe_get("sshd_port"));
 	}
@@ -1399,6 +1408,12 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 			fprintf(fp,
 				":YADNS - [0:0]\n");
 #endif
+
+#ifdef RTCONFIG_PARENTALCTRL
+			fprintf(fp,
+				":PCREDIRECT - [0:0]\n");
+#endif
+
 		}
 
 		_dprintf("writting prerouting 2 %s %s %s %s %s %s\n", wan_if, wan_ip, wanx_if, wanx_ip, lan_if, lan_ip);
@@ -1432,12 +1447,25 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 		fprintf(fp,
 				":YADNS - [0:0]\n");
 #endif
+
+#ifdef RTCONFIG_PARENTALCTRL
+		fprintf(fp,
+				":PCREDIRECT - [0:0]\n");
+#endif
+
 	}
 
 #ifdef RTCONFIG_YANDEXDNS
 	if (nvram_get_int("yadns_enable_x"))
 		write_yandexdns_filter(fp, lan_if, lan_ip);
 #endif
+
+#ifdef RTCONFIG_PARENTALCTRL
+	if(nvram_get_int("MULTIFILTER_ALL") != 0 && count_pc_rules() > 0){
+		config_blocking_redirect(fp);
+	}
+#endif
+
 
 	// need multiple instance for tis?
 	if (nvram_match("misc_http_x", "1"))
@@ -1455,10 +1483,9 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 	}
 
 #ifdef RTCONFIG_SSH
-	if (nvram_match("sshd_enable", "1") && nvram_get_int("sshd_forwarding"))
+	if (nvram_match("sshd_enable", "1"))
 	{
-		if ((wan_port = nvram_get_int("sshd_rport")) == 0)
-			wan_port = 22;
+		wan_port = nvram_get_int("sshd_port") ? : 22;
 		fprintf(fp, "-A VSERVER -p tcp -m tcp --dport %d -j DNAT --to-destination %s:%s\n",
 			wan_port, lan_ip, nvram_safe_get("sshd_port"));
 	}
@@ -2178,8 +2205,8 @@ TRACE_PT("writing Parental Control\n");
 		config_daytime_string(fp, logaccept, logdrop);
 
 #ifdef RTCONFIG_IPV6
-                if (ipv6_enabled())
-                        config_daytime_string(fp_ipv6, logaccept, logdrop);
+		if (ipv6_enabled())
+			config_daytime_string(fp_ipv6, logaccept, logdrop);
 #endif
 		dtype = logdrop;
 		ftype = logaccept;
@@ -2325,7 +2352,7 @@ TRACE_PT("writing Parental Control\n");
 #endif
 		}
 #ifdef RTCONFIG_SSH
-		if (nvram_match("sshd_enable", "1") && nvram_get_int("sshd_remote"))
+		if (nvram_match("sshd_enable", "1"))
 		{
 			fprintf(fp, "-A INPUT -p tcp -m tcp -d %s --dport %s -j %s\n", lan_ip, nvram_safe_get("sshd_port"), logaccept);
 		}
@@ -2959,6 +2986,11 @@ TRACE_PT("write url filter\n");
 				if (*filterstr) {
 					fprintf(fp, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
 						timef, filterstr);
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
+						timef, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -2972,6 +3004,12 @@ TRACE_PT("write url filter\n");
 				if (*filterstr) {
 					fprintf(fp, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
 						timef2, filterstr);
+
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
+						timef2, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -2991,6 +3029,12 @@ TRACE_PT("write url filter\n");
 				if (*filterstr) {
 					fprintf(fp, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
 						timef, filterstr);
+
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
+						timef, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -3003,6 +3047,12 @@ TRACE_PT("write url filter\n");
 				if (*filterstr) {
 					fprintf(fp, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
 						timef, filterstr);
+
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
+						timef, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -3281,7 +3331,7 @@ TRACE_PT("writing Parental Control\n");
 #endif
 		}
 #ifdef RTCONFIG_SSH
-		if (nvram_match("sshd_enable", "1") && nvram_get_int("sshd_remote"))
+		if (nvram_match("sshd_enable", "1"))
 		{
 			fprintf(fp, "-A INPUT -p tcp -m tcp -d %s --dport %s -j %s\n", lan_ip, nvram_safe_get("sshd_port"), logaccept);
 		}
@@ -4035,6 +4085,12 @@ TRACE_PT("write url filter\n");
 				if (*filterstr) {
 					fprintf(fp, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
 						timef, filterstr);
+
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
+						timef, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -4048,6 +4104,12 @@ TRACE_PT("write url filter\n");
 				if (*filterstr) {
 					fprintf(fp, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
 						timef2, filterstr);
+
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp %s -m webstr --url \"%s\" -j REJECT --reject-with tcp-reset\n",
+						timef2, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -4065,8 +4127,14 @@ TRACE_PT("write url filter\n");
 				if (vstrsep(b, ">", &filterstr) != 1)
 					continue;
 				if (*filterstr) {
-					fprintf(fp, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j DROP\n",
+					fprintf(fp, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
 						timef, filterstr);
+
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
+                                                timef, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -4077,8 +4145,14 @@ TRACE_PT("write url filter\n");
 				if (vstrsep(b, ">", &filterstr) != 1)
 					continue;
 				if (*filterstr) {
-					fprintf(fp, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j DROP\n",
+					fprintf(fp, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
 						timef, filterstr);
+
+#ifdef RTCONFIG_IPV6
+					if (ipv6_enabled())
+					fprintf(fp_ipv6, "-I FORWARD -p tcp --sport 80 %s -m string --string \"%s\" --algo bm -j REJECT --reject-with tcp-reset\n",
+						timef, filterstr);
+#endif
 				}
 			}
 			free(nv);
@@ -4185,14 +4259,14 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 #endif /* RTCONFIG_IPV6 */
 #endif /* RTCONFIG_YANDEXDNS */
 
-/* In Bangladesh, ISPs force the packet TTL as 1 at modem side to block ip sharing. Increase the TTL once the packet come at WAN with TTL=1 */
-	if(nvram_match("ttl_inc_enable", "1"))
-	{
+	/* In Bangladesh, ISPs force the packet TTL as 1 at modem side to block ip sharing.
+	 * Increase the TTL once the packet come at WAN with TTL=1 */
+	if (nvram_match("ttl_inc_enable", "1")) {
+		eval("iptables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-m", "ttl", "--ttl-eq", "1", "-j", "TTL", "--ttl-set", "64");
 #ifdef RTCONFIG_IPV6
-		if(ipv6_enabled())
+		if (ipv6_enabled())
 			eval("ip6tables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-m", "hl", "--hl-eq", "1", "-j", "HL", "--hl-set", "64");
 #endif
-			eval("iptables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-m", "ttl", "--ttl-eq", "1", "-j", "TTL", "--ttl-set", "64");
 	}
 
 #ifdef CONFIG_BCMWL5
@@ -4275,14 +4349,39 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 #endif
 	}
 
-/* In Bangladesh, ISPs force the packet TTL as 1 at modem side to block ip sharing. Increase the TTL once the packet come at WAN with TTL=1 */
-	if(nvram_match("ttl_inc_enable", "1"))
-	{
+#ifdef RTCONFIG_YANDEXDNS
 #ifdef RTCONFIG_IPV6
-        	if(ipv6_enabled())
-                	eval("ip6tables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-m", "hl", "--hl-eq", "1", "-j", "HL", "--hl-set", "64");
+	if (nvram_get_int("yadns_enable_x") && ipv6_enabled()) {
+		FILE *fp;
+		
+		fp = fopen("/tmp/mangle_rules_ipv6.yadns", "w");
+		if (fp != NULL) {
+			fprintf(fp, "*mangle\n"
+			    ":YADNSI - [0:0]\n"
+			    ":YADNSF - [0:0]\n");
+
+			write_yandexdns_filter6(fp, lan_if, lan_ip);
+
+			fprintf(fp, "COMMIT\n");
+			fclose(fp);
+
+			eval("ip6tables-restore", "/tmp/mangle_rules_ipv6.yadns");
+		}
+	}
+#endif /* RTCONFIG_IPV6 */
+#endif /* RTCONFIG_YANDEXDNS */
+
+	/* In Bangladesh, ISPs force the packet TTL as 1 at modem side to block ip sharing.
+	 * Increase the TTL once the packet come at WAN with TTL=1 */
+	if (nvram_match("ttl_inc_enable", "1")) {
+		for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
+			wan_if = get_wan_ifname(unit);
+			eval("iptables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-m", "ttl", "--ttl-eq", "1", "-j", "TTL", "--ttl-set", "64");
+#ifdef RTCONFIG_IPV6
+			if (ipv6_enabled())
+				eval("ip6tables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-m", "hl", "--hl-eq", "1", "-j", "HL", "--hl-set", "64");
 #endif
-                	eval("iptables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-m", "ttl", "--ttl-eq", "1", "-j", "TTL", "--ttl-set", "64");
+		}
 	}
 
 #ifdef CONFIG_BCMWL5
@@ -4296,9 +4395,14 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 		else if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") == 1){
 				eval("iptables", "-t", "mangle", "-N", "BWDPI_FILTER");
 				eval("iptables", "-t", "mangle", "-F", "BWDPI_FILTER");
+
+			// for dual-wan case, it has mutli-mangle rules
+			for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
+				wan_if = get_wan_ifname(unit);
 				eval("iptables", "-t", "mangle", "-A", "BWDPI_FILTER", "-i", wan_if, "-p", "udp", "--sport", "68", "--dport", "67", "-j", "DROP");
 				eval("iptables", "-t", "mangle", "-A", "BWDPI_FILTER", "-i", wan_if, "-p", "udp", "--sport", "67", "--dport", "68", "-j", "DROP");
 				eval("iptables", "-t", "mangle", "-A", "PREROUTING", "-i", wan_if, "-p", "udp", "-j", "BWDPI_FILTER");
+			}
 		}
 #endif
 		/* mark 80 port connection */

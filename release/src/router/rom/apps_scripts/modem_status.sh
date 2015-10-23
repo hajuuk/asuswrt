@@ -311,7 +311,7 @@ elif [ "$1" == "imei" ]; then
 	echo "done."
 elif [ "$1" == "iccid" ]; then
 	if [ "$modem_vid" == "1478" -a "$modem_pid" == "36902" ]; then
-		echo -n "Getting IMEI..."
+		echo -n "Getting ICCID..."
 		at_ret=`$at_lock modem_at.sh '+ICCID' 2>/dev/null`
 		ret=`echo "$at_ret" |grep "ICCID: " |awk '{FS="ICCID: "; print $2}' 2>/dev/null`
 		if [ "$ret" == "" ]; then
@@ -325,7 +325,7 @@ elif [ "$1" == "iccid" ]; then
 	fi
 elif [ "$1" == "rate" ]; then
 	if [ "$modem_vid" == "1478" -a "$modem_pid" == "36902" ]; then
-		echo -n "Getting IMEI..."
+		echo -n "Getting Rate..."
 		qcqmi=`_get_qcqmi_by_usbnet $modem_dev 2>/dev/null`
 		at_ret=`gobi_api $qcqmi rate |grep "Max Tx" 2>/dev/null`
 		max_tx=`echo "$at_ret" |awk '{FS=","; print $1}' |awk '{FS=" "; print $3}' 2>/dev/null`
@@ -468,9 +468,8 @@ elif [ "$1" == "simauth" ]; then
 		nvram set usb_modem_act_auth_puk=$ret
 
 		echo "SIM PUK retry is $ret."
+		echo "done."
 	fi
-
-	echo "done."
 elif [ "$1" == "simpin" ]; then
 	if [ "$2" == "" ]; then
 		nvram set g3state_pin=2
@@ -572,5 +571,34 @@ elif [ "$1" == "pwdpin" ]; then
 	fi
 
 	echo "done."
+elif [ "$1" == "gnws" ]; then
+	if [ "$modem_vid" == "1478" -a "$modem_pid" == "36902" ]; then
+		at_cgnws=`$at_lock modem_at.sh '+CGNWS' |grep "+CGNWS:" |awk '{FS=":"; print $2}' 2>/dev/null`
+		if [ "$at_cgnws" == "" ]; then
+			echo "Fail to get the CGNWS."
+			exit 39
+		fi
+
+		roaming=`echo "$at_cgnws" |awk '{FS=","; print $1}' 2>/dev/null`
+		signal=`echo "$at_cgnws" |awk '{FS=","; print $2}' 2>/dev/null`
+		reg_type=`echo "$at_cgnws" |awk '{FS=","; print $3}' 2>/dev/null`
+		reg_state=`echo "$at_cgnws" |awk '{FS=","; print $4}' 2>/dev/null`
+		mcc=`echo "$at_cgnws" |awk '{FS=","; print $5}' 2>/dev/null`
+		mnc=`echo "$at_cgnws" |awk '{FS=","; print $6}' 2>/dev/null`
+		spn=`echo "$at_cgnws" |awk '{FS=","; print $7}' 2>/dev/null`
+		isp_long=`echo "$at_cgnws" |awk '{FS=","; print $8}' 2>/dev/null`
+		isp_short=`echo "$at_cgnws" |awk '{FS=","; print $9}' 2>/dev/null`
+
+		echo "   Roaming=$roaming."
+		echo "    Signal=$signal."
+		echo " REG. Type=$reg_type."
+		echo "REG. State=$reg_state."
+		echo "       MCC=$mcc."
+		echo "       MNC=$mnc."
+		echo "       SPN=$spn."
+		echo "  ISP Long=$isp_long."
+		echo " ISP Short=$isp_short."
+		echo "done."
+	fi
 fi
 

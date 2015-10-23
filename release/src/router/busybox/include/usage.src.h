@@ -4690,6 +4690,21 @@ INSERT
      "\n" \
      "\nUse 500ms to specify period in milliseconds" \
 
+#define md_trivial_usage \
+       "md address [count]"
+#define md_full_usage "\n\n" \
+       "md address [count]\n"
+
+#define mm_trivial_usage \
+       "mm address value"
+#define mm_full_usage "\n\n" \
+       "mm address value\n"
+
+#define ethreg_trivial_usage \
+       "ethreg ......"
+#define ethreg_full_usage "\n\n" \
+       "ethreg ......\n"
+
 #define which_trivial_usage \
        "[COMMAND]..."
 #define which_full_usage "\n\n" \

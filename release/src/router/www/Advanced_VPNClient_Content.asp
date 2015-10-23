@@ -93,6 +93,12 @@ var restart_vpncall_flag = 0; //Viz add 2014.04 for Edit Connecting rule then re
 function initial(){
 	show_menu();
 	show_vpnc_rulelist();
+
+	document.getElementById('edit_vpn_crt_client1_ca').value = '<% nvram_get("vpn_crt_client1_ca"); %>'.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+	document.getElementById('edit_vpn_crt_client1_crt').value = '<% nvram_get("vpn_crt_client1_crt"); %>'.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+	document.getElementById('edit_vpn_crt_client1_key').value = '<% nvram_get("vpn_crt_client1_key"); %>'.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+	document.getElementById('edit_vpn_crt_client1_static').value = '<% nvram_get("vpn_crt_client1_static"); %>'.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+	document.getElementById('edit_vpn_crt_client1_crl').value = '<% nvram_get("vpn_crt_client1_crl"); %>'.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
 }
 
 function Add_profile(){
@@ -257,7 +263,7 @@ function addRow_Group(upper, flag, idx){
 				}
 
 				// update vpnc_pptp_options_x
-				ocument.form.vpnc_pptp_options_x.value = "";
+				document.form.vpnc_pptp_options_x.value = "";
 				if(vpnc_clientlist_col[1] == "PPTP" && document.form.selPPTPOption.value != "auto") {
 					document.form.vpnc_pptp_options_x.value = document.form.selPPTPOption.value;
 				}
@@ -648,12 +654,16 @@ function show_vpnc_rulelist(){
 			var vpnc_clientlist_col = vpnc_clientlist_row[i].split('>');
 			if(vpnc_clientlist_col[1] == "OpenVPN"){
 				if(vpnc_proto == "openvpn"){	//matched connecting rule, because openvpn only unit 1 for now.
-					if(vpnc_state_t == 2)	//connected
-						code +='<td width="10%"><img src="/images/checked_parentctrl.png" style="width:25px;"></td>';
-					else if(vpnc_state_t == 1)	//connecting
-						code +='<td width="10%"><img src="/images/InternetScan.gif"></td>';
+					if(vpnc_state_t == 0 || vpnc_state_t == 1)	//connecting
+						code +='<td width="10%"><img title="<#CTL_Add_enrollee#>" src="/images/InternetScan.gif"></td>';
+					else if(vpnc_state_t == 2)	//connected
+						code +='<td width="10%"><img title="<#Connected#>" src="/images/checked_parentctrl.png" style="width:25px;"></td>';
+					else if(vpn_clientX_errno == 1 || vpn_clientX_errno == 2 || vpn_clientX_errno == 3)
+						code +='<td width="10%"><img title="<#vpn_openvpn_conflict#>" src="/images/New_ui/notification.png" style="background-image:url(/images/New_ui/notification.png);background-repeat:no-repeat;height:25px;width:25px;"></td>';
+					else if(vpn_clientX_errno == 4 || vpn_clientX_errno == 5 || vpn_clientX_errno == 6)
+						code +='<td width="10%"><img title="<#qis_fail_desc1#>" src="/images/button-close2.png" style="width:25px;"></td>';
 					else		//Stop connection
-						code +='<td width="10%"><img src="/images/button-close2.png" style="width:25px;"></td>';
+						code +='<td width="10%"><img title="<#ConnectionFailed#>" src="/images/button-close2.png" style="width:25px;"></td>';
 				}
 				else
 					code +='<td width="10%">-</td>';
@@ -663,11 +673,13 @@ function show_vpnc_rulelist(){
 				 && vpnc_clientlist_col[2] == document.form.vpnc_heartbeat_x.value
 				 && vpnc_clientlist_col[3] == document.form.vpnc_pppoe_username.value){		//matched connecting rule
 					if(vpnc_state_t == 0 || vpnc_state_t ==1) // Initial or Connecting
-						code +='<td width="10%"><img src="/images/InternetScan.gif"></td>';
+						code +='<td width="10%"><img title="<#CTL_Add_enrollee#>" src="/images/InternetScan.gif"></td>';
 					else if(vpnc_state_t == 2) // Connected
-						code +='<td width="10%"><img src="/images/checked_parentctrl.png" style="width:25px;"></td>';
+						code +='<td width="10%"><img title="<#Connected#>" src="/images/checked_parentctrl.png" style="width:25px;"></td>';
+					else if(vpnc_state_t == 4 && vpnc_sbstate_t == 2)
+						code +='<td width="10%"><img title="<#qis_fail_desc1#>" src="/images/button-close2.png" style="width:25px;"></td>';
 					else // Stop connection
-						code +='<td width="10%"><img src="/images/button-close2.png" style="width:25px;"></td>';
+						code +='<td width="10%"><img title="<#ConnectionFailed#>" src="/images/button-close2.png" style="width:25px;"></td>';
 				}
 				else{
 					code +='<td width="10%">-</td>';
@@ -1044,11 +1056,11 @@ function ovpnFileChecker(){
 				setTimeout("ovpnFileChecker();",1000);
 			}
 			else{
-				document.getElementById('edit_vpn_crt_client1_ca').innerHTML = vpn_crt_client1_ca;
-				document.getElementById('edit_vpn_crt_client1_crt').innerHTML = vpn_crt_client1_crt;
-				document.getElementById('edit_vpn_crt_client1_key').innerHTML = vpn_crt_client1_key;
-				document.getElementById('edit_vpn_crt_client1_static').innerHTML = vpn_crt_client1_static;
-				document.getElementById('edit_vpn_crt_client1_crl').innerHTML = vpn_crt_client1_crl;
+				document.getElementById('edit_vpn_crt_client1_ca').value = vpn_crt_client1_ca.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+				document.getElementById('edit_vpn_crt_client1_crt').value = vpn_crt_client1_crt.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+				document.getElementById('edit_vpn_crt_client1_key').value = vpn_crt_client1_key.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+				document.getElementById('edit_vpn_crt_client1_static').value = vpn_crt_client1_static.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
+				document.getElementById('edit_vpn_crt_client1_crl').value = vpn_crt_client1_crl.replace(/&#10/g, "\n").replace(/&#13/g, "\r");
 				var vpn_upload_state_tmp = "";
 				vpn_upload_state_tmp = parseInt(vpn_upload_state) - 16;
 				if(vpn_upload_state_tmp > -1){
@@ -1186,13 +1198,13 @@ function addOpenvpnProfile(){
 					<tr>
 						<th><#PPPConnection_UserName_itemname#></th>
 						<td>
-							<input type="text" maxlength="64" name="vpnc_account_edit" value="" class="input_32_table" style="float:left;"></input>
+							<input type="text" maxlength="64" name="vpnc_account_edit" value="" class="input_32_table" style="float:left;" autocapitalization="off" autocomplete="off"></input>
 						</td>
 					</tr>  		
 					<tr>
 						<th><#PPPConnection_Password_itemname#></th>
 						<td>
-							<input type="text" maxlength="64" name="vpnc_pwd_edit" value="" class="input_32_table" style="float:left;"></input>
+							<input type="text" maxlength="64" name="vpnc_pwd_edit" value="" class="input_32_table" style="float:left;" autocapitalization="off" autocomplete="off"></input>
 						</td>
 					</tr>  
 					<tr>
@@ -1328,13 +1340,13 @@ function addOpenvpnProfile(){
 						<tr>
 							<th><#PPPConnection_UserName_itemname#> (option)</th>
 							<td>
-								<input type="text" maxlength="64" name="vpnc_openvpn_username" value="" class="input_32_table" style="float:left;"></input>
+								<input type="text" maxlength="64" name="vpnc_openvpn_username" value="" class="input_32_table" style="float:left;" autocapitalization="off" autocomplete="off"></input>
 							</td>
 						</tr>  
 						<tr>
 							<th><#PPPConnection_Password_itemname#> (option)</th>
 							<td>
-								<input type="text" maxlength="64" name="vpnc_openvpn_pwd" value="" class="input_32_table" style="float:left;"></input>
+								<input type="text" maxlength="64" name="vpnc_openvpn_pwd" value="" class="input_32_table" style="float:left;" autocapitalization="off" autocomplete="off"></input>
 							</td>
 						</tr>  		  			
 						<tr>
@@ -1499,31 +1511,31 @@ function addOpenvpnProfile(){
 												<tr>
 													<th id="manualCa">Certificate Authority</th>
 													<td>
-														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_ca" name="edit_vpn_crt_client1_ca" cols="65" maxlength="2999"><% nvram_clean_get("vpn_crt_client1_ca"); %></textarea>
+														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_ca" name="edit_vpn_crt_client1_ca" cols="65" maxlength="2999"></textarea>
 													</td>
 												</tr>
 												<tr>
 													<th id="manualCert">Client Certificate</th>
 													<td>
-														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_crt" name="edit_vpn_crt_client1_crt" cols="65" maxlength="2999"><% nvram_clean_get("vpn_crt_client1_crt"); %></textarea>
+														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_crt" name="edit_vpn_crt_client1_crt" cols="65" maxlength="2999"></textarea>
 													</td>
 												</tr>
 												<tr>
 													<th id="manualKey">Client Key</th>
 													<td>
-														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_key" name="edit_vpn_crt_client1_key" cols="65" maxlength="2999"><% nvram_clean_get("vpn_crt_client1_key"); %></textarea>
+														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_key" name="edit_vpn_crt_client1_key" cols="65" maxlength="2999"></textarea>
 													</td>
 												</tr>
 												<tr>
 													<th id="manualStatic">Static Key (Optional)</th>
 													<td>
-														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_static" name="edit_vpn_crt_client1_static" cols="65" maxlength="2999"><% nvram_clean_get("vpn_crt_client1_static"); %></textarea>
+														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_static" name="edit_vpn_crt_client1_static" cols="65" maxlength="2999"></textarea>
 													</td>
 												</tr>
 												<tr>
 													<th id="manualCRList">Certificate Revocation List (Optional)</th>
 													<td>
-														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_crl" name="edit_vpn_crt_client1_crl" cols="65" maxlength="2999"><% nvram_clean_get("vpn_crt_client1_crl"); %></textarea>
+														<textarea rows="8" class="textarea_ssh_table" id="edit_vpn_crt_client1_crl" name="edit_vpn_crt_client1_crl" cols="65" maxlength="2999"></textarea>
 													</td>
 												</tr>
 											</table>

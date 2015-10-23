@@ -44,7 +44,10 @@ if(dualWAN_support && ( wans_dualwan.search("wan") >= 0 || wans_dualwan.search("
 			location.href = "Advanced_DSL_Content.asp";
 			break;
 		case "USB":
-			location.href = "Advanced_Modem_Content.asp";
+			if(based_modelid == "4G-AC55U")
+				location.href = "Advanced_MobileBroadband_Content.asp";
+			else
+				location.href = "Advanced_Modem_Content.asp";
 			break;
 		default:
 			break;	
@@ -128,6 +131,9 @@ function change_wan_unit(obj){
 			return false;
 		}			
 	}
+	else if(obj.options[obj.selectedIndex].text == "Mobile Broadband"){
+		document.form.current_page.value = "Advanced_MobileBroadband_Content.asp";
+	}
 
 	FormActions("apply.cgi", "change_wan_unit", "", "");
 	document.form.target = "";
@@ -137,12 +143,14 @@ function change_wan_unit(obj){
 function genWANSoption(){
 	for(i=0; i<wans_dualwan.split(" ").length; i++){
 		var wans_dualwan_NAME = wans_dualwan.split(" ")[i].toUpperCase();
-                //MODELDEP: DSL-N55U, DSL-N55U-B, DSL-AC68U, DSL-AC68R
-                if(wans_dualwan_NAME == "LAN" && 
-                        (productid == "DSL-N55U" || productid == "DSL-N55U-B" || productid == "DSL-AC68U" || productid == "DSL-AC68R")) 
-                        wans_dualwan_NAME = "Ethernet WAN";
-                else if(wans_dualwan_NAME == "LAN")
-                        wans_dualwan_NAME = "Ethernet LAN";		
+        //MODELDEP: DSL-N55U, DSL-N55U-B, DSL-AC68U, DSL-AC68R
+        if(wans_dualwan_NAME == "LAN" && 
+          (productid == "DSL-N55U" || productid == "DSL-N55U-B" || productid == "DSL-AC68U" || productid == "DSL-AC68R")) 
+        	wans_dualwan_NAME = "Ethernet WAN";
+		else if(wans_dualwan_NAME == "LAN")
+        	wans_dualwan_NAME = "Ethernet LAN";		
+		else if(wans_dualwan_NAME == "USB" && based_modelid == "4G-AC55U")
+			wans_dualwan_NAME = "Mobile Broadband";                       
 		document.form.wan_unit.options[i] = new Option(wans_dualwan_NAME, i);
 	}	
 	
@@ -181,7 +189,7 @@ function applyRule(){
 			inputCtrl(document.form.wan_dns1_x, 1);
 			inputCtrl(document.form.wan_dns2_x, 1);
 		}
-		
+
 		// Turn CTF into level 1, and turn back to level 2 if there exists nvram ctf_fa_mode_close.
 		if(ctf.changeType() && ctf.getLevel() == 2 && ctf.level2_supprot){
 			FormActions("start_apply.htm", "apply", "reboot", "<% get_default_reboot_time(); %>");
@@ -192,7 +200,7 @@ function applyRule(){
 }
 
 var ctf = {
-	disable_force: '<% nvram_get("ctf_disable_force"); %>',
+	disable_force: '<% nvram_get("ctf_disable"); %>',
 	fa_mode_close: '<% nvram_get("ctf_fa_mode_close"); %>',
 	fa_mode: '<% nvram_get("ctf_fa_mode"); %>',
 	level2_supprot: ('<% nvram_get("ctf_fa_mode"); %>' == '') ? false : true,
@@ -913,7 +921,7 @@ function pass_checked(obj){
             	</tr>
             	</thead>
             	<tr>
-							<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,29);"><#PPPConnection_Authentication_itemname#></a></th>
+							<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,30);"><#PPPConnection_Authentication_itemname#></a></th>
 							<td align="left">
 							    <select class="input_option" name="wan_auth_x" onChange="change_wan_type(document.form.wan_proto.value);">
 							    <option value="" <% nvram_match("wan_auth_x", "", "selected"); %>><#wl_securitylevel_0#></option>
@@ -922,12 +930,12 @@ function pass_checked(obj){
 							</tr>
             	<tr>
               	<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,4);"><#PPPConnection_UserName_itemname#></a></th>
-              	<td><input type="text" maxlength="64" class="input_32_table" name="wan_pppoe_username" value="<% nvram_get("wan_pppoe_username"); %>" onkeypress="return validator.isString(this, event)"></td>
+              	<td><input type="text" maxlength="64" class="input_32_table" name="wan_pppoe_username" value="<% nvram_get("wan_pppoe_username"); %>" autocapitalization="off" autocomplete="off" onkeypress="return validator.isString(this, event)"></td>
             	</tr>
             	<tr id="tr_pppoe_password">
               	<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,5);"><#PPPConnection_Password_itemname#></a></th>
               	<td>
-					<div style="margin-top:2px;"><input type="password" autocapitalization="off" maxlength="64" class="input_32_table" id="wan_pppoe_passwd" name="wan_pppoe_passwd" value="<% nvram_get("wan_pppoe_passwd"); %>"></div>
+					<div style="margin-top:2px;"><input type="password" maxlength="64" class="input_32_table" id="wan_pppoe_passwd" name="wan_pppoe_passwd" value="<% nvram_get("wan_pppoe_passwd"); %>" autocapitalization="off" autocomplete="off"></div>
 					<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.form.wan_pppoe_passwd);"><#QIS_show_pass#></div>
 				</td>
             	</tr>

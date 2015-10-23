@@ -66,6 +66,10 @@
 #include <ralink.h>
 #endif
 
+#ifdef RTCONFIG_QCA
+#include <qca.h>
+#endif
+
 #define	MAX_MAC_NUM	16
 static int mac_num;
 static char mac_clone[MAX_MAC_NUM][18];
@@ -132,6 +136,36 @@ _dprintf("==>%s ip: %s, prefix: %d\n", __func__, ip, prefixA);
 			return 1;
 	}
 	return 0;
+}
+#endif
+
+#if defined(RTCONFIG_WANRED_LED)
+/**
+ * Use arping to test whether gateway exist or not.
+ * @gw:
+ * @return:
+ * 	0:	success
+ *  otherwise:	fail
+ */
+int test_gateway(char *gw, char *wan_ifname)
+{
+	int ret;
+
+	if (!gw || *gw == '\0')
+		return -1;
+
+	/* If gateway is not available, below statment elapses 3 seconds. */
+	if (!wan_ifname || *wan_ifname == '\0')
+		ret = eval("arping", "-f", "-w", "10", gw);
+	else
+		ret = eval("arping", "-f", "-w", "10", "-I", wan_ifname, gw);
+
+	if (ret)
+		_dprintf("arping %s fail, return %d!!!\n", gw, ret);
+	else
+		_dprintf("arping %s OK\n", gw);
+
+	return ret;
 }
 #endif
 
@@ -492,6 +526,7 @@ int add_multi_routes(void)
 #endif
 	system("ip route flush cache");
 
+	logmessage("wan", "finish adding multi routes");
 	return 0;
 }
 
@@ -891,6 +926,17 @@ void update_wan_state(char *prefix, int state, int reason)
 	else if(state == WAN_STATE_STOPPING){
 		unlink("/tmp/wanstatus.log");
 	}
+
+#if defined(RTCONFIG_WANRED_LED)
+	if (state == WAN_STATE_INITIALIZING || state == WAN_STATE_STOPPED || state == WAN_STATE_CONNECTING || state == WAN_STATE_STOPPING || state == WAN_STATE_CONNECTED) {
+		int unit = 0;
+
+		/* update WAN LED(s) as soon as possible. */
+		if (!strncmp(prefix, "wan1_", 5))
+			unit = 1;
+		update_wan_leds(unit);
+	}
+#endif
 }
 
 #ifdef RTCONFIG_IPV6
@@ -1959,14 +2005,18 @@ int update_resolvconf(void)
 			fprintf(fp, "nameserver %s\n", tmp);
 
 		wan_domain = nvram_safe_get(strcat_r(prefix, "domain", tmp));
-		if (*wan_domain && *wan_dns)
-			foreach(tmp, wan_dns, next)
+		foreach(tmp, wan_dns, next) {
+			if (*wan_domain)
 				fprintf(fp_servers, "server=/%s/%s\n", wan_domain, tmp);
+			fprintf(fp_servers, "server=/%s/%s\n", "local", tmp);
+		}
 
 		wan_xdomain = nvram_safe_get(strcat_r(prefix, "xdomain", tmp));
-		if (*wan_xdomain && *wan_xdns && strcmp(wan_xdomain, wan_domain) != 0)
-			foreach(tmp, wan_xdns, next)
+		foreach(tmp, wan_xdns, next) {
+			if (*wan_xdomain && strcmp(wan_xdomain, wan_domain) != 0)
 				fprintf(fp_servers, "server=/%s/%s\n", wan_xdomain, tmp);
+			fprintf(fp_servers, "server=/%s/%s\n", "local", tmp);
+		}
 	}
 #ifdef RTCONFIG_OPENVPN
 	}
@@ -2034,7 +2084,7 @@ void wan6_up(const char *wan_ifname)
 	struct in_addr addr4;
 	struct in6_addr addr;
 	char *gateway;
-	int service = get_ipv6_service();
+	int mtu, service = get_ipv6_service();
 
 	if (!wan_ifname || (strlen(wan_ifname) <= 0) ||
 		(service == IPV6_DISABLED))
@@ -2060,7 +2110,7 @@ void wan6_up(const char *wan_ifname)
 	case IPV6_NATIVE_DHCP:
 #ifndef RTCONFIG_WIDEDHCP6
 		start_dhcp6c();
-#endif /* !RTCONFIG_WIDEDHCP6 */
+#endif /* RTCONFIG_WIDEDHCP6 */
 		break;
 	case IPV6_MANUAL:
 		if (nvram_match("ipv6_ipaddr", (char*)ipv6_router_address(NULL))) {
@@ -2077,6 +2127,12 @@ void wan6_up(const char *wan_ifname)
 			eval("ip", "-6", "route", "add", "::/0", "via", gateway, "dev", (char *)wan_ifname, "metric", "1");
 		} else	eval("ip", "-6", "route", "add", "::/0", "dev", (char *)wan_ifname, "metric", "1");
 
+#ifndef RTCONFIG_WIDEDHCP6
+		/* propagate ipv6 mtu */
+		mtu = ipv6_getconf(wan_ifname, "mtu");
+		if (mtu)
+			ipv6_sysconf(nvram_safe_get("lan_ifname"), "mtu", mtu);
+#endif /* !RTCONFIG_WIDEDHCP6 */
 		/* workaround to update ndp entry for now */
 		eval("ping6", "-c", "2", "-I", (char *)wan_ifname, "ff02::1");
 		eval("ping6", "-c", "2", nvram_safe_get("ipv6_gateway"));
@@ -2129,6 +2185,13 @@ void wan6_up(const char *wan_ifname)
 			nvram_set("ipv6_rtr_addr", addr6);
 		}
 		start_ipv6_tunnel();
+
+#ifndef RTCONFIG_WIDEDHCP6
+		/* propagate ipv6 mtu */
+		mtu = ipv6_getconf(wan_ifname, "mtu");
+		if (mtu)
+			ipv6_sysconf(nvram_safe_get("lan_ifname"), "mtu", mtu);
+#endif /* !RTCONFIG_WIDEDHCP6 */
 		// FIXME: give it a few seconds for DAD completion
 		sleep(2);
 		break;
@@ -2146,7 +2209,7 @@ void wan6_up(const char *wan_ifname)
 		start_radvd();
 		break;
 	}
-#endif // RTCONFIG_WIDEDHCP6
+#endif /* RTCONFIG_WIDEDHCP6 */
 #if 0
 	start_ecmh(wan_ifname);
 #endif
@@ -2163,7 +2226,7 @@ void wan6_down(const char *wan_ifname)
 	stop_rdnssd();
 	stop_radvd();
 	stop_dhcp6s();
-#endif
+#endif /* RTCONFIG_WIDEDHCP6 */
 	stop_dhcp6c();
 	stop_ipv6_tunnel();
 
@@ -2325,7 +2388,7 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 	}
 #endif
 
-#if defined(RTN65U) || defined(RTN56U) || defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P)|| defined(RTN54U)
+#if defined(RTN65U) || defined(RTN56U) || defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P)|| defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UV2)
 	reinit_hwnat(wan_unit);
 #endif
 
@@ -2338,6 +2401,11 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 	}
 #endif
 
+#if defined(RTCONFIG_WANRED_LED)
+	if (!strcmp(wan_proto, "static") && test_gateway(gateway, wan_ifname))
+		update_wan_state(prefix, WAN_STATE_CONNECTING, 0);
+	else
+#endif
 	/* Set connected state */
 	update_wan_state(prefix, WAN_STATE_CONNECTED, 0);
 
@@ -2470,6 +2538,15 @@ wan_down(char *wan_ifname)
 		return;
 
 	_dprintf("%s(%s): %s.\n", __FUNCTION__, wan_ifname, nvram_safe_get(strcat_r(prefix, "dns", tmp)));
+
+#if defined(RTCONFIG_BLINK_LED)
+	if(dualwan_unit__usbif(wan_unit)
+			|| ((nvram_get_int("boardflags") & 0x100) && get_dualwan_by_unit(wan_unit) == WANS_DUALWAN_IF_LAN)
+			)
+	{
+		remove_netdev_bled_if("led_wan_gpio", wan_ifname);
+	}
+#endif
 
 	/* Stop post-authenticator */
 	stop_auth(wan_unit, 1);

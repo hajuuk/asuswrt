@@ -134,7 +134,7 @@
 26207,O2,*99***1#,,,internet,O2
 26208,O2,*99***1#,,,internet,O2
 26209,Vodafone,*99***1#,vodafone,vodafone,web.vodafone.de,Vodafone
-26210,O2,*99***1#,,,internet,Arcor AG & Co
+26210,O2,*99***1#,,,internet,Arcor AG &amp; Co
 26214,DE Quam GPRS,,quam,quam,quam.de,Group 3G UMTS
 26216,Telogic ex. Vistream,*99***1#,WAP,Vistream,internet.vistream.net,vistream
 26277,E-Plus,*99***1#,eplus,gprs,internet.eplus.de,E-Plus
@@ -165,9 +165,9 @@
 310026,T-Mobile,*99***1#,,,epc.tmobile.com,T-Mobile
 310030,AT&T,*99***1#,,,broadband,Centennial
 310120,Verizon,#777,,,,Sprint
-310150,AT&T,*99***1#,,,broadband,AT&T
+310150,AT&T,*99***1#,,,broadband,AT&amp;T
 310160,T-Mobile VPN United States GPRS15,*99***1#,,,internet3.voicestream.com,T-Mobile
-310170,AT&T,*99***1#,,,broadband,AT&T
+310170,AT&T,*99***1#,,,broadband,AT&amp;T
 31018,Cingular Accelerated United States UMTS EDGE GPRS2,,ISPDA@CINGULARGPRS.COM,CINGULAR1,isp.cingular,
 31018,Cingular United States UMTS EDGE GPRS3,,ISP@CINGULARGPRS.COM,CINGULAR1,isp.cingular,
 310200,T-Mobile (T-Zone),*99***1#,,,epc.tmobile.com,T-Mobile
@@ -198,21 +198,21 @@
 31031,T-Mobile VPN United States GPRS12,*99***1#,,,internet3.voicestream.com,
 310320,Cellular One,*99***1#,,,cellular1wap,Cellular One
 310330,T-Mobile,*99***1#,,,epc.tmobile.com,T-Mobile
-310380,AT&T,*99***1#,,,broadband,AT&T Mobility
+310380,AT&T,*99***1#,,,broadband,AT&amp;T Mobility
 310390,Cellular One,*99***1#,,,cellular1wap,Cellular One of East Texas
-310410,AT&T,*99***1#,,,broadband,AT&T
+310410,AT&T,*99***1#,,,broadband,AT&amp;T
 310420,Cincinnati Bell,*99***1#,,,wap.gocbw.com,Cincinnati Bell
 310440,Cellular One,*99***1#,,,cellular1wap,Cellular One
 310490,T-Mobile,*99***1#,,,epc.tmobile.com,SunCom
-310560,AT&T,*99***1#,,,broadband,AT&T
+310560,AT&T,*99***1#,,,broadband,AT&amp;T
 310570,Cellular One,*99***1#,,,cellular1wap,Chinook Wireless
 310580,T-Mobile,*99***1#,,,epc.tmobile.com,T-Mobile
 31064,Telecom Italia Mobile,*99***1#,,,proxy,
 310660,T-Mobile,*99***1#,,,epc.tmobile.com,T-Mobile
-310680,AT&T,*99***1#,,,broadband,AT&T
+310680,AT&T,*99***1#,,,broadband,AT&amp;T
 310800,T-Mobile,*99***1#,,,epc.tmobile.com,T-Mobile
-310980,AT&T,*99***1#,,,broadband,AT&T Mobility
-310990,AT&T,*99***1#,,,broadband,AT&T Mobility
+310980,AT&T,*99***1#,,,broadband,AT&amp;T Mobility
+310990,AT&T,*99***1#,,,broadband,AT&amp;T Mobility
 311480,Verizon,#777,,,,Verizon
 311481,Verizon,#777,,,,
 311482,Verizon,#777,,,,
@@ -290,9 +290,9 @@
 40458,BSNL Madhya Pradesh,*99***1#,,,bsnlnet,BSNL
 40459,BSNL Rajasthan,*99***1#,,,bsnlnet,BSNL
 40460,Vodafone Rajasthan,*99***1#,,,www,Aircell Digilink
-40462,BSNL Jammu & Kashmir,*99***1#,,,bsnlnet,BSNL J&K
+40462,BSNL Jammu & Kashmir,*99***1#,,,bsnlnet,BSNL J&amp;K
 40464,BSNL Chennai,*99***1#,,,bsnlnet,BSNL
-40466,BSNL Maharashtra,*99***1#,,,bsnlnet,BSNL Maharashtra & Goa
+40466,BSNL Maharashtra,*99***1#,,,bsnlnet,BSNL Maharashtra &amp; Goa
 40467,Reliance,#777,,,reliance,Reliance
 40468,MTNL DELHI(POST),*99#,mtnl,mtnl123,gprsmtnldel,MTNL - Delhi
 40468,MTNL DELHI(PRE),*99#,mtnl,mtnl123,gprsppsdel,MTNL - Delhi
@@ -318,7 +318,7 @@
 40487,IDEA,*99#,,,Internet,Escorts Telecom
 40488,Vodafone Punjab,*99***1#,,,www,Escorts Telecom
 40489,IDEA,*99#,,,Internet,Escorts Telecom
-40490,AirTel,*99#,,,airtelgprs.com,Airtel Maharashtra & Goa
+40490,AirTel,*99#,,,airtelgprs.com,Airtel Maharashtra &amp; Goa
 40491,AIRCEL Kolkata,*99***1#,,,aircelgprs,AIRCEL
 40492,AirTel,*99#,,,airtelgprs.com,Airtel Mumbai
 40493,AirTel,*99#,,,airtelgprs.com,Airtel Gujrat
