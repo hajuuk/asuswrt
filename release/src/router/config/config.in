@@ -41,12 +41,20 @@ config RTCONFIG_BCM7
 	bool "Bcm sdk 7"
 	default n
 
-config RTCONFIG_BCM794
-	bool "Bcm sdk 7_14_94"
+config RTCONFIG_BCM_794
+	bool "Bcm sdk 7_14_94_x"
+	default n
+
+config RTCONFIG_BCM10
+	bool "Bcm sdk 10_10_18_x"
 	default n
 
 config RTCONFIG_BUILDBCM7
 	bool "build Bcm sdk 7 on 6 platforms"
+	default n
+
+config RTCONFIG_ROMCFE
+	bool "fw include cfe"
 	default n
 
 config RTCONFIG_NV128
@@ -566,6 +574,10 @@ config RTCONFIG_WLAN_LED
 	bool "SW Control WLAN LED"
 	default n
 
+config RTCONFIG_FAKE_ETLAN_LED
+	bool "SW Control LAN LED"
+	default n
+
 config RTCONFIG_EXT_LED_WPS
 	bool "used to standalone WPS LED(not POWER LED)"
 	default n
@@ -592,6 +604,10 @@ config RTCONFIG_WIFI_TOG_BTN
 
 config RTCONFIG_WPS_RST_BTN
 	bool "HW Button for WPS and Restore dual function"
+	default n
+
+config RTCONFIG_WPS_ALLLED_BTN
+	bool "HW Button for WPS and LED dual function"
 	default n
 
 config RTCONFIG_TURBO
@@ -816,6 +832,10 @@ config RTCONFIG_NOWL
 	bool "no load wl module (only dhd test)"
 	default n
 
+config RTCONFIG_TCODE
+	bool "Territory code"
+	default n
+
 config RTCONFIG_ALLNOWL
 	bool "no load all wl module "
 	default n
@@ -828,7 +848,7 @@ config RTCONFIG_JFFS2USERICON
 	bool "Client list user upload icon"
 	default n
 
-config RTCONFIG_RTL8365MB
+config RTCONFIG_EXT_RTL8365MB
 	bool "rtl8365mb driver flag"
 
 config RTCONFIG_TOR
@@ -841,4 +861,8 @@ config RTCONFIG_TR069
 
 config RTCONFIG_TR181
 	bool "Support TR-181 data model"
+	default n
+
+config RTCONFIG_STAINFO
+	bool "STA informtion support"
 	default n

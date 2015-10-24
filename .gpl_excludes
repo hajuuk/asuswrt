@@ -55,13 +55,13 @@ release/src/router/hspot_ap_arm_7
 release/src/router/httpd/pwenc.c
 release/src/router/hw_nat/*.c
 release/src/router/hw_nat/*.h
-release/src/router/igmp
+release/src/router/igmp/*.c
+release/src/router/igmp/*.h
 release/src/router/inotify/*.c
 release/src/router/inotify/*.h
 release/src/router/inotify/Makefile.asuswrt
 release/src/router/inotify/Makefile.opt
 release/src/router/inotify/Makefile.pc
-release/src/router/iptables/extensions/libipt_SKIPLOG.c
 release/src/router/libbcm/*.c
 release/src/router/libupnp/ecos
 release/src/router/libupnp/include

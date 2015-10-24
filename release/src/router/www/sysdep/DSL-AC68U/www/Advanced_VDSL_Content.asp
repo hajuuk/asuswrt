@@ -1139,7 +1139,7 @@ function pass_checked(obj){
 									<table id="dot1q_setting" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 										<thead>
 										<tr>
-											<td colspan="2">802.1q</td>
+											<td colspan="2">802.1Q</td>
 										</tr>
 										</thead>
 										<tr>
@@ -1153,6 +1153,12 @@ function pass_checked(obj){
 											<th>VLAN ID</th>
 											<td>
 												<input type="text" name="dsl_vid" maxlength="4" class="input_6_table" value="<% nvram_get("dsl_vid"); %>" onKeyPress="return validator.isNumber(this,event);"> 0 - 4095
+											</td>
+										</tr>
+										<tr>
+											<th>802.1P</th>
+											<td>
+												<input type="text" name="dsl_dot1p" maxlength="4" class="input_6_table" value="<% nvram_get("dsl_dot1p"); %>" onKeyPress="return validator.isNumber(this,event);"> 0 - 7
 											</td>
 										</tr>
 									<table>

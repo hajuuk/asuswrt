@@ -55,6 +55,33 @@ if [ "$1" == "80211h_off" ] ; then
 	echo "off" > /tmp/80211h
 	iwpriv wifi0 pc_override 0 &
 fi
+if [ "$1" == "wifi1_lanaccess_off" ] ; then
+	echo_with_logging "=== blocking guest network1 lanaccess"
+	call_qcsapi vlan_config wifi0 enable 0 &
+	call_qcsapi vlan_config wifi1 bind 4000 &
+fi
+if [ "$1" == "wifi1_lanaccess_on" ] ; then
+	echo_with_logging "=== unblocking guest network1 lanaccess"
+	call_qcsapi vlan_config wifi1 unbind 4000 &
+fi
+if [ "$1" == "wifi2_lanaccess_off" ] ; then
+	echo_with_logging "=== blocking guest network2 lanaccess"
+	call_qcsapi vlan_config wifi0 enable 0 &
+	call_qcsapi vlan_config wifi2 bind 4001 &
+fi
+if [ "$1" == "wifi2_lanaccess_on" ] ; then
+	echo_with_logging "=== unblocking guest network2 lanaccess"
+	call_qcsapi vlan_config wifi2 unbind 4001 &
+fi
+if [ "$1" == "wifi3_lanaccess_off" ] ; then
+	echo_with_logging "=== blocking guest network3 lanaccess"
+	call_qcsapi vlan_config wifi0 enable 0 &
+	call_qcsapi vlan_config wifi3 bind 4002 &
+fi
+if [ "$1" == "wifi3_lanaccess_on" ] ; then
+	echo_with_logging "=== unblocking guest network3 lanaccess"
+	call_qcsapi vlan_config wifi3 unbind 4002 &
+fi
 
 eth1_1_speed=`cat /sys/class/net/eth1_1/speed`
 if [ "$1" == "get_eth_1000m" ] ; then

@@ -3020,6 +3020,13 @@ int asus_mmc(const char *device_name, const char *action){
 		ret = mount_r(mnt_dev, mountpoint, type);
 
 		_dprintf("[%s] chk mount:%d\n", __FUNCTION__, ret);	// tmp test
+
+#ifdef RTAC88U
+		stop_samba();
+		setup_passwd();
+		start_samba();
+		eval("cp", "-f", "/rom/smb.conf", "/etc/smb.conf");
+#endif
 	} else {
 		ret = umount2(mountpoint, MNT_DETACH);
 
@@ -3110,8 +3117,10 @@ int asus_sd(const char *device_name, const char *action){
 		}
 #endif
 
+#ifdef RTCONFIG_USB_MODEM
 		snprintf(buf1, 32, "%s.%s", USB_MODESWITCH_CONF, port_path);
 		unlink(buf1);
+#endif
 
 		if(strlen(usb_node) > 0){
 			// for the storage interface of the second modem.
@@ -4159,10 +4168,10 @@ int asus_usb_interface(const char *device_name, const char *action){
 
 		strcpy(device_type, nvram_safe_get(prefix));
 
+#ifdef RTCONFIG_USB_MODEM
 		snprintf(conf_file, 32, "%s.%s", USB_MODESWITCH_CONF, port_path);
 		unlink(conf_file);
 
-#ifdef RTCONFIG_USB_MODEM
 		if(!strcmp(device_type, "modem") && !strcmp(usb_node, nvram_safe_get("usb_modem_act_path"))){
 			snprintf(buf, 128, "%s", nvram_safe_get(strcat_r(prefix, "_act", tmp)));
 

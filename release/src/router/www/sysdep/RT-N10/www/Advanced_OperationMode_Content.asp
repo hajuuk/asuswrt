@@ -63,9 +63,9 @@ function saveMode(){
 	}
 	else if(document.form.sw_mode.value == 2){
 		if(sw_mode == 3)
-			parent.location.href = '/QIS_wizard.htm?flag=sitesurvey';
+			parent.location.href = '/QIS_wizard.htm?flag=sitesurvey_rep';
 		else
-			parent.location.href = 'http://router.asus.com/QIS_wizard.htm?flag=sitesurvey';
+			parent.location.href = 'http://router.asus.com/QIS_wizard.htm?flag=sitesurvey_rep';
 		return false;
 	}
 	else{ // default router

@@ -1277,8 +1277,33 @@ function configure_pin(){
 }
 
 function getSimAuth(){
-		document.simact_form.action_mode.value = "restart_simauth";
-		document.simact_form.submit();
+	document.simact_form.action_mode.value = "restart_simauth";
+	document.simact_form.submit();
+}
+
+function change_autoAPN(autoAPN){
+	if(autoAPN == "0")
+		inputCtrl(document.form.modem_enable_option, 1);
+	else
+		inputCtrl(document.form.modem_enable_option, 0);
+}
+
+function reset_usage(){
+	cookie.unset(keystr);
+	document.simact_form.action_mode.value = "restart_resetcount";
+	document.getElementById("reset_usage_btn").style.display = "none";
+	document.getElementById("loadingIcon_reset").style.display = "";
+	document.simact_form.submit();
+	setTimeout("finish_reset_usage();", 4000);
+}
+
+function finish_reset_usage(){
+	document.getElementById("loadingIcon_reset").style.display = "none";
+	update_usage_data();
+}
+
+function show_change_hint(){
+	document.getElementById("change_day_hint").style.display="";
 }
 
 </script>
@@ -1343,6 +1368,7 @@ function getSimAuth(){
 					</thead>
 			 		<tr><th><#Modelname#></th><td><% nvram_get("productid"); %></td></tr>  
 		  			<tr><th><#Hardware_version#></th><td><div id="modem_act_hwver"><% nvram_get("usb_modem_act_hwver"); %></div></td></tr>
+		  			<tr><th>LTE Modem Version</th><td><div id="usb_modem_act_swver"><% nvram_get("usb_modem_act_swver"); %></div></td></tr>
 		  			<tr><th>IMEI</th><td><div id="modem_act_imei"><% nvram_get("usb_modem_act_imei"); %></div></td></tr>
 					<tr><th>IMSI</th><td><div id="modem_act_imsi"><% nvram_get("usb_modem_act_imsi"); %></div></td></tr>
 					<tr><th>ICCID</th><td><div id="modem_act_iccid"><% nvram_get("usb_modem_act_iccid"); %></div></td></tr>

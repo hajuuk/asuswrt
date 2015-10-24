@@ -1255,9 +1255,6 @@ int mount_partition(char *dev_name, int host_num, char *dsc_name, char *pt_name,
 
 	find_label_or_uuid(dev_name, the_label, uuid);
 
-	if(!is_valid_hostname(the_label))
-		memset(the_label, 0, 128);
-
 	if (f_exists("/etc/fstab")) {
 		if (strcmp(type, "swap") == 0) {
 			_eval(swp_argv, NULL, 0, NULL);
@@ -1274,7 +1271,7 @@ int mount_partition(char *dev_name, int host_num, char *dsc_name, char *pt_name,
 
 	if (*the_label != 0) {
 		for (ptr = the_label; *ptr; ptr++) {
-			if (!isalnum(*ptr) && !strchr("+-&.@", *ptr))
+			if (!isalnum(*ptr) && !strchr("+-&.@()", *ptr))
 				*ptr = '_';
 		}
 		sprintf(mountpoint, "%s/%s", POOL_MOUNT_ROOT, the_label);
@@ -2129,7 +2126,11 @@ _dprintf("%s: cmd=%s.\n", __FUNCTION__, cmd);
 	if(nv)
 		free(nv);
 
+#ifdef RTAC88U
+	xstart("nmbd", "-D", "-s", "/rom/smb.conf");
+#else
 	xstart("nmbd", "-D", "-s", "/etc/smb.conf");
+#endif
 
 #if defined(RTCONFIG_TFAT) || defined(RTCONFIG_TUXERA_NTFS) || defined(RTCONFIG_TUXERA_HFS)
 	if(nvram_get_int("enable_samba_tuxera") == 1)
@@ -2149,7 +2150,11 @@ _dprintf("%s: cmd=%s.\n", __FUNCTION__, cmd);
 		taskset_ret = eval("ionice", "-c1", "-n0", smbd_cmd, "-D", "-s", "/etc/smb.conf");
 #else
 	if(cpu_num > 1)
+#ifdef RTAC88U
+		taskset_ret = cpu_eval(NULL, "1", smbd_cmd, "-D", "-s", "/rom/smb.conf");
+#else
 		taskset_ret = cpu_eval(NULL, "1", smbd_cmd, "-D", "-s", "/etc/smb.conf");
+#endif
 	else
 		taskset_ret = eval(smbd_cmd, "-D", "-s", "/etc/smb.conf");
 #endif

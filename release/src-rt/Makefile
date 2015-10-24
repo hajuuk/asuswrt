@@ -360,7 +360,7 @@ cleankernel:
 	cp -p save-config .config || true
 
 kernel:
-	@$(MAKE) -C router kernel
+	$(MAKE) -C router kernel
 	@[ ! -e $(KERNEL_BINARY) ] || ls -l $(KERNEL_BINARY)
 
 distclean: clean cleanimage cleankernel cleantools cleanlibc
@@ -599,6 +599,10 @@ define RouterOptions
 		sed -i "/RTCONFIG_WLAN_LED/d" $(1); \
 		echo "RTCONFIG_WLAN_LED=y" >>$(1); \
 	fi; \
+	if [ "$(ETLAN_LED)" = "y" ]; then \
+		sed -i "/RTCONFIG_FAKE_ETLAN_LED/d" $(1); \
+		echo "RTCONFIG_FAKE_ETLAN_LED=y" >>$(1); \
+	fi; \
 	if [ "$(EXT_LED_WPS)" = "y" ]; then \
 		sed -i "/RTCONFIG_EXT_LED_WPS/d" $(1); \
 		echo "RTCONFIG_EXT_LED_WPS=y" >>$(1); \
@@ -630,6 +634,10 @@ define RouterOptions
 	if [ "$(BTN_WPS_RST)" = "y" ]; then \
 		sed -i "/RTCONFIG_WPS_RST_BTN/d" $(1); \
 		echo "RTCONFIG_WPS_RST_BTN=y" >>$(1); \
+	fi; \
+	if [ "$(BTN_WPS_ALLLED)" = "y" ]; then \
+		sed -i "/RTCONFIG_WPS_ALLLED_BTN/d" $(1); \
+		echo "RTCONFIG_WPS_ALLLED_BTN=y" >>$(1); \
 	fi; \
 	if [ "$(TURBO)" = "y" ]; then \
 		sed -i "/RTCONFIG_TURBO/d" $(1); \
@@ -1118,9 +1126,15 @@ define RouterOptions
 		sed -i "/RTCONFIG_SPEEDTEST/d" $(1); \
 		echo "RTCONFIG_SPEEDTEST=y" >>$(1); \
 	fi; \
-	if [ "$(BCM794)" = "y" ]; then \
-		sed -i "/RTCONFIG_BCM794/d" $(1); \
-		echo "RTCONFIG_BCM794=y" >>$(1); \
+	if [ "$(BCM_794)" = "y" ]; then \
+		sed -i "/RTCONFIG_BCM_794/d" $(1); \
+		echo "RTCONFIG_BCM_794=y" >>$(1); \
+	fi; \
+	if [ "$(BCM10)" = "y" ]; then \
+		sed -i "/RTCONFIG_BCM10/d" $(1); \
+		echo "RTCONFIG_BCM10=y" >>$(1); \
+		sed -i "/RTCONFIG_BCMDCS/d" $(1); \
+		echo "RTCONFIG_BCMDCS=y" >>$(1); \
 	fi; \
 	if [ "$(BCM7)" = "y" ]; then \
 		sed -i "/RTCONFIG_BCM7/d" $(1); \
@@ -1144,6 +1158,10 @@ define RouterOptions
 		sed -i "/RTCONFIG_BUILDBCM7/d" $(1); \
 		echo "RTCONFIG_BUILDBCM7=y" >>$(1); \
 	fi; \
+	if [ "$(ROMCFE)" = "y" ]; then \
+		sed -i "/RTCONFIG_ROMCFE/d" $(1); \
+		echo "RTCONFIG_ROMCFE=y" >>$(1); \
+	fi; \
 	if [ "$(SSD)" = "y" ]; then \
 		sed -i "/RTCONFIG_BCMSSD/d" $(1); \
 		echo "RTCONFIG_BCMSSD=y" >>$(1); \
@@ -1164,6 +1182,10 @@ define RouterOptions
 		sed -i "/RTCONFIG_NOWL/d" $(1); \
 		echo "RTCONFIG_NOWL=y" >>$(1); \
 	fi; \
+	if [ "$(TCODE)" = "y" ]; then \
+		sed -i "/RTCONFIG_TCODE/d" $(1); \
+		echo "RTCONFIG_TCODE=y" >>$(1); \
+	fi; \
 	if [ "$(WIFILOGO)" = "y" ]; then \
 		sed -i "/RTCONFIG_WIFILOGO/d" $(1); \
 		echo "RTCONFIG_WIFILOGO=y" >>$(1); \
@@ -1176,8 +1198,8 @@ define RouterOptions
 		echo "# RTCONFIG_JFFS2USERICON is not set" >>$(1); \
 	fi; \
 	if [ "$(SWITCH2)" = "RTL8365MB" ]; then \
-		sed -i "/RTCONFIG_RTL8365MB/d" $(1); \
-		echo "RTCONFIG_RTL8365MB=y" >>$(1); \
+		sed -i "/RTCONFIG_EXT_RTL8365MB/d" $(1); \
+		echo "RTCONFIG_EXT_RTL8365MB=y" >>$(1); \
 	fi; \
 	if [ "$(TOR)" = "y" ]; then \
 		sed -i "/RTCONFIG_TOR/d" $(1); \
@@ -1194,6 +1216,10 @@ define RouterOptions
 	if [ "$(NOWLALL)" = "y" ]; then \
 		sed -i "/RTCONFIG_ALLNOWLALL/d" $(1); \
 		echo "RTCONFIG_ALLNOWL=y" >>$(1); \
+	fi; \
+	if [ "$(STAINFO)" = "y" ]; then \
+		sed -i "/RTCONFIG_STAINFO/d" $(1); \
+		echo "RTCONFIG_STAINFO=y" >>$(1); \
 	fi; \
 	)
 	$(call platformRouterOptions, $(1))
@@ -1830,9 +1856,9 @@ define KernelConfig
 			echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_ADDR=0x01810000" >>$(1); \
 			echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_LEN=0x2000" >>$(1); \
 		elif [ "$(BUILD_NAME)" = "RT-AC68U" ]; then \
-                        echo "CONFIG_DUMP_PREV_OOPS_MSG=y" >>$(1); \
-                        echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_ADDR=0xC0000000" >>$(1); \
-                        echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_LEN=0x2500" >>$(1); \
+			echo "CONFIG_DUMP_PREV_OOPS_MSG=y" >>$(1); \
+			echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_ADDR=0xC0000000" >>$(1); \
+			echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_LEN=0x2500" >>$(1); \
 		elif [ "$(BUILD_NAME)" = "RT-AC3200" ]; then \
 			echo "CONFIG_DUMP_PREV_OOPS_MSG=y" >>$(1); \
 			echo "CONFIG_DUMP_PREV_OOPS_MSG_BUF_ADDR=0xC0000000" >>$(1); \
@@ -1853,7 +1879,7 @@ define KernelConfig
 	else \
 		echo "# CONFIG_RTAC3200 is not set" >>$(1); \
 	fi; \
-	if [ "$(BCM794)" = "y" ]; then \
+	if [ "$(BCM_794)" = "y" ]; then \
 		sed -i "/CONFIG_CR4_OFFLOAD/d" $(1); \
 		echo "# CONFIG_CR4_OFFLOAD is not set" >>$(1); \
 		sed -i "/CONFIG_PLAT_UART_CLOCKS/d" $(1); \
@@ -1869,6 +1895,16 @@ define KernelConfig
 		sed -i "/CONFIG_BCM_FA=y/d" $(1); \
 		echo "# CONFIG_BCM_FA is not set" >>$(1); \
 		sed -i "/CONFIG_DHDAP=y/d" $(1); \
+		echo "# CONFIG_DHDAP is not set" >>$(1); \
+		sed -i "/CONFIG_DPSTA/d" $(1); \
+		echo "# CONFIG_DPSTA is not set" >>$(1); \
+	fi; \
+	if [ "$(NODHD)" = "y" ]; then \
+		sed -i "/CONFIG_BCM_GMAC3=y/d" $(1); \
+		echo "# CONFIG_BCM_GMAC3 is not set" >>$(1); \
+		sed -i "/CONFIG_BCM_FA/d" $(1); \
+		echo "CONFIG_BCM_FA=y" >>$(1); \
+		sed -i "/CONFIG_DHDAP/d" $(1); \
 		echo "# CONFIG_DHDAP is not set" >>$(1); \
 		sed -i "/CONFIG_DPSTA/d" $(1); \
 		echo "# CONFIG_DPSTA is not set" >>$(1); \
@@ -1960,6 +1996,20 @@ define KernelConfig
 		sed -i "/CONFIG_DHDAP/d" $(1); \
 		echo "CONFIG_DHDAP=m" >>$(1); \
 	fi; \
+	if [ "$(BCM10)" = "y" ]; then \
+		sed -i "/CONFIG_CR4_OFFLOAD/d" $(1); \
+		echo "# CONFIG_CR4_OFFLOAD is not set" >>$(1); \
+		sed -i "/CONFIG_PLAT_UART_CLOCKS/d" $(1); \
+		echo "# CONFIG_PLAT_UART_CLOCKS is not set" >>$(1); \
+		sed -i "/CONFIG_NF_CONNTRACK_EVENTS/d" $(1); \
+		echo "CONFIG_NF_CONNTRACK_EVENTS=y" >>$(1); \
+		sed -i "/CONFIG_BCM_FA/d" $(1); \
+		echo "CONFIG_BCM_FA=y" >>$(1); \
+		sed -i "/CONFIG_BCM_GMAC3/d" $(1); \
+		echo "# CONFIG_BCM_GMAC3 is not set" >>$(1); \
+		sed -i "/CONFIG_DHDAP/d" $(1); \
+		echo "# CONFIG_DHDAP is not set" >>$(1); \
+	fi; \
 	if [ "$(RGMII_BCM_FA)" = "y" ]; then \
 		sed -i "/CONFIG_RGMII_BCM_FA/d" $(1); \
 		echo "CONFIG_RGMII_BCM_FA=y" >>$(1); \
@@ -1968,7 +2018,7 @@ define KernelConfig
 		sed -i "/CONFIG_RTL8365MB/d" $(1); \
 		echo "CONFIG_RTL8365MB=m" >>$(1); \
 	fi; \
-	if [ "$(RTAC88U)" = "y" ]; then \
+	if [ "$(BCM_MMC)" = "y" ]; then \
 		sed -i "/CONFIG_MMC/d" $(1); \
 		echo "CONFIG_MMC=y" >>$(1); \
 		sed -i "/CONFIG_MMC_BLOCK/d" $(1); \
@@ -2032,7 +2082,7 @@ endif
 	$(call BusyboxOptions, router/busybox/config_$(lowercase_B))
 
 	@$(MAKE) setprofile
-	@$(MAKE) all
+	$(MAKE) all
 
 define save_src_config
 	@if [ -f .config ] ; then \
@@ -2124,7 +2174,7 @@ setprofile:
 		echo "RTCONFIG_WLMODULE_MT7603E_AP=y" >> router/.config; \
 	fi
 
-	@$(MAKE) -C router oldconfig
+	$(MAKE) -C router oldconfig
 
 cleanlibc:
 #	@$(MAKE) -C ../../tools-src/uClibc clean

@@ -19,7 +19,7 @@
 <style>
 .weakness{
 	width:650px;
-	height:570px;
+	height:590px;
 	position:absolute;
 	background: rgba(0,0,0,0.8);
 	z-index:10;
@@ -576,6 +576,7 @@ function eula_confirm(){
 
 function show_alert_preference(){
 	cal_panel_block();
+	parse_wrs_mail_bit();
 	$j('#alert_preference').fadeIn(300);
 	$('mail_address').value = document.form.PM_MY_EMAIL.value;
 	$('mail_password').value = document.form.PM_SMTP_AUTH_PASS.value;
@@ -589,6 +590,7 @@ function apply_alert_preference(){
 	var address_temp = $('mail_address').value;
 	var account_temp = $('mail_address').value.split("@");
 	var smtpList = new Array();
+	var mail_bit = 0;
 	smtpList = [
 		{smtpServer: "smtp.gmail.com", smtpPort: "587", smtpDomain: "gmail.com"},
 		{end: 0}
@@ -607,12 +609,34 @@ function apply_alert_preference(){
 		document.form.PM_MY_EMAIL.value = account_temp[0] + "@" +smtpList[0].smtpDomain;
 	}
 	
+	if(document.getElementById("mal_website_item").checked)
+		mail_bit += 1;
+	
+	if(document.getElementById("vp_item").checked)
+		mail_bit += 2;
+	
+	if(document.getElementById("cc_item").checked)
+		mail_bit += 4;
+	
+	document.form.wrs_mail_bit.value = mail_bit;
 	document.form.PM_SMTP_AUTH_USER.value = account_temp[0];
 	document.form.PM_SMTP_AUTH_PASS.value = $('mail_password').value;	
 	document.form.PM_SMTP_SERVER.value = smtpList[0].smtpServer;	
 	document.form.PM_SMTP_PORT.value = smtpList[0].smtpPort;	
 	$j('#alert_preference').fadeOut(100);
 	document.form.submit();
+}
+
+function parse_wrs_mail_bit(){
+	var quot = document.form.wrs_mail_bit.value;
+	var mail_bit_array =  new Array();
+	for(i=0;i<3;i++){
+		mail_bit_array[i] = quot%2; 
+		quot = parseInt(quot/2);	
+	}
+	document.getElementById("mal_website_item").checked =  mail_bit_array[0] == 1 ? true : false;
+	document.getElementById("vp_item").checked =  mail_bit_array[1] == 1 ? true : false;
+	document.getElementById("cc_item").checked =  mail_bit_array[2] == 1 ? true : false;
 }
 </script>
 </head>
@@ -742,7 +766,7 @@ function apply_alert_preference(){
 
 </div>
 
-<div id="alert_preference" style="width:650px;height:270px;position:absolute;background:rgba(0,0,0,0.8);z-index:10;border-radius:10px;margin-left:260px;padding:15px 10px 20px 10px;display:none">
+<div id="alert_preference" style="width:650px;height:290px;position:absolute;background:rgba(0,0,0,0.8);z-index:10;border-radius:10px;margin-left:260px;padding:15px 10px 20px 10px;display:none">
 	<table style="width:99%">
 		<tr>
 			<th>
@@ -786,6 +810,19 @@ function apply_alert_preference(){
 						<td>
 							<div>
 								<input type="password" class="input_30_table" id="mail_password" maxlength="100" value="">
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<th>Notification Item</th>
+						<td>
+							<div>							
+								<input type="checkbox" class="" id="mal_website_item" value="">
+								<label><#AiProtection_sites_blocking#></label>
+								<input type="checkbox" class="" id="vp_item" value="">
+								<label><#AiProtection_Vulnerability#></label>
+								<input type="checkbox" class="" id="cc_item" value="">
+								<label><#AiProtection_detection_blocking#></label>
 							</div>
 						</td>
 					</tr>
@@ -845,6 +882,7 @@ function apply_alert_preference(){
 <input type="hidden" name="PM_MY_EMAIL" value="<% nvram_get("PM_MY_EMAIL"); %>">
 <input type="hidden" name="PM_SMTP_AUTH_USER" value="<% nvram_get("PM_SMTP_AUTH_USER"); %>">
 <input type="hidden" name="PM_SMTP_AUTH_PASS" value="">
+<input type="hidden" name="wrs_mail_bit" value="<% nvram_get("wrs_mail_bit"); %>">
 
 <table class="content" align="center" cellpadding="0" cellspacing="0" >
 	<tr>

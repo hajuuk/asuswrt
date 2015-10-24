@@ -378,7 +378,7 @@ endif
 	@cd $(INSTALLDIR)/sbin && ln -sf rc rtkswitch
 endif
 
-ifeq ($(RTCONFIG_RTL8365MB),y)
+ifeq ($(RTCONFIG_EXT_RTL8365MB),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc rtkswitch
 endif
 
@@ -473,7 +473,10 @@ ifeq ($(RTCONFIG_SPEEDTEST),y)
 endif
 ifeq ($(RTCONFIG_USB_MODEM),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc write_3g_ppp_conf
-	@cd $(INSTALLDIR)/sbin && ln -sf rc modem_bytes_plus
+ifeq ($(or $(RTCONFIG_JFFS2),$(RTCONFIG_BRCM_NAND_JFFS2),$(RTCONFIG_UBIFS)),y)
+	@cd $(INSTALLDIR)/sbin && ln -sf rc lplus
+	@cd $(INSTALLDIR)/sbin && ln -sf rc lminus
+endif
 endif
 ifeq ($(RTCONFIG_IPERF),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc monitor

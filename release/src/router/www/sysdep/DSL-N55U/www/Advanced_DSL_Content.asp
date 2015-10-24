@@ -675,6 +675,7 @@ function disable_all_ctrl() {
 	$("t2BC").style.display = "none";
 	$("vpn_server").style.display = "none";
 	$("btn_apply").style.display = "none";
+	$("dot1q_setting").style.display = "none";
 }
 
 function enable_all_ctrl() {
@@ -688,6 +689,9 @@ function enable_all_ctrl() {
 	$("t2BC").style.display = "";
 	$("vpn_server").style.display = "";
 	$("btn_apply").style.display = "";
+	if(productid == "DSL-AC68U" || productid == "DSL-AC68R") {
+		$("dot1q_setting").style.display = "";
+	}
 }
 
 function change_dsl_type(dsl_type){
@@ -797,6 +801,12 @@ function fixed_change_dsl_type(dsl_type){
 		showhide("IPsetting",1);
 		showhide("DNSsetting",1);
 		showhide("vpn_server",1);
+		if(productid == "DSL-AC68U" || productid == "DSL-AC68R") {
+			if(dsl_type == "pppoe")
+				showhide("dot1q_setting",1);
+			else
+				showhide("dot1q_setting",0);
+		}
 	}
 	else if(dsl_type == "ipoa"){
 		document.form.dslx_dnsenable[0].checked = 0;
@@ -813,6 +823,9 @@ function fixed_change_dsl_type(dsl_type){
 		showhide("IPsetting",1);
 		showhide("DNSsetting",1);
 		showhide("vpn_server",1);
+		if(productid == "DSL-AC68U" || productid == "DSL-AC68R") {
+			showhide("dot1q_setting",0);
+		}
 	}
 	else if(dsl_type == "mer"){
 		inputCtrl(document.form.dslx_DHCPClient[0], 1);
@@ -828,6 +841,9 @@ function fixed_change_dsl_type(dsl_type){
 		showhide("IPsetting",1);
 		showhide("DNSsetting",1);
 		showhide("vpn_server",1);
+		if(productid == "DSL-AC68U" || productid == "DSL-AC68R") {
+			showhide("dot1q_setting",1);
+		}
 	}
 	else if(dsl_type == "bridge"){
 		document.form.dslx_dnsenable[0].checked = 1;
@@ -847,6 +863,9 @@ function fixed_change_dsl_type(dsl_type){
 		showhide("IPsetting",0);
 		showhide("DNSsetting",0);
 		showhide("vpn_server",0);
+		if(productid == "DSL-AC68U" || productid == "DSL-AC68R") {
+			showhide("dot1q_setting",1);
+		}
 	}
 	else {
 		alert("error");
@@ -1242,6 +1261,33 @@ function pass_checked(obj){
 											</td>
 										</tr>
 									</table>
+
+									<table id="dot1q_setting" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
+										<thead>
+										<tr>
+											<td colspan="2">802.1Q</td>
+										</tr>
+										</thead>
+										<tr>
+											<th><#WLANConfig11b_WirelessCtrl_button1name#></th>
+											<td>
+												<input type="radio" name="dsl_dot1q" class="input" value="1" onclick="change_dsl_dhcp_enable();" <% nvram_match("dsl_dot1q", "1", "checked"); %>><#checkbox_Yes#>
+												<input type="radio" name="dsl_dot1q" class="input" value="0" onclick="change_dsl_dhcp_enable();" <% nvram_match("dsl_dot1q", "0", "checked"); %>><#checkbox_No#>
+											</td>
+										</tr>
+										<tr>
+											<th>VLAN ID</th>
+											<td>
+												<input type="text" name="dsl_vid" maxlength="4" class="input_6_table" value="<% nvram_get("dsl_vid"); %>" onKeyPress="return validator.isNumber(this,event);"> 0 - 4095
+											</td>
+										</tr>
+										<tr>
+											<th>802.1P</th>
+											<td>
+												<input type="text" name="dsl_dot1p" maxlength="4" class="input_6_table" value="<% nvram_get("dsl_dot1p"); %>" onKeyPress="return validator.isNumber(this,event);"> 0 - 7
+											</td>
+										</tr>
+									<table>
 
 									<table id="IPsetting" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 										<thead>

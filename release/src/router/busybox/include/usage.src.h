@@ -4730,19 +4730,4 @@ INSERT
 #define zcat_full_usage "\n\n" \
        "Decompress to stdout"
 
-#define zcip_trivial_usage \
-       "[OPTIONS] IFACE SCRIPT"
-#define zcip_full_usage "\n\n" \
-       "Manage a ZeroConf IPv4 link-local address\n" \
-     "\nOptions:" \
-     "\n	-f		Run in foreground" \
-     "\n	-q		Quit after obtaining address" \
-     "\n	-r 169.254.x.x	Request this address first" \
-     "\n	-v		Verbose" \
-     "\n	-S		Log to syslog too" \
-     "\n" \
-     "\nWith no -q, runs continuously monitoring for ARP conflicts," \
-     "\nexits only on I/O errors (link down etc)" \
-
-
 #endif

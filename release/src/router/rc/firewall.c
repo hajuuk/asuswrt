@@ -2336,6 +2336,19 @@ TRACE_PT("writing Parental Control\n");
 	}
 	else
 	{
+		if (!nvram_match("misc_ping_x", "0"))
+			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
+#ifdef RTCONFIG_IPV6
+		else if (get_ipv6_service() == IPV6_6IN4)
+		{
+			/* accept ICMP requests from the remote tunnel endpoint */
+			ip = nvram_safe_get("ipv6_tun_v4end");
+			if (*ip && strcmp(ip, "0.0.0.0") != 0)
+				fprintf(fp, "-A INPUT -p icmp -s %s -j %s\n", ip, logaccept);
+		}
+#endif
+		else
+			fprintf(fp, "-A INPUT -p icmp -j %s\n", logdrop);
 #ifndef RTCONFIG_PARENTALCTRL
 		if (nvram_match("macfilter_enable_x", "1"))
 		{
@@ -2431,20 +2444,6 @@ TRACE_PT("writing Parental Control\n");
 			if(nvram_get_int("st_webdav_mode")!=0) {
 				fprintf(fp, "-A INPUT -p tcp -m tcp --dport %s -j %s\n", nvram_safe_get("webdav_https_port"), logaccept);	// oleg patch
 			}
-		}
-#endif
-
-		if (!nvram_match("misc_ping_x", "0"))
-		{
-			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
-		}
-#ifdef RTCONFIG_IPV6
-		else if (get_ipv6_service() == IPV6_6IN4)
-		{
-			/* accept ICMP requests from the remote tunnel endpoint */
-			ip = nvram_safe_get("ipv6_tun_v4end");
-			if (*ip && strcmp(ip, "0.0.0.0") != 0)
-				fprintf(fp, "-A INPUT -p icmp -s %s -j %s\n", ip, logaccept);
 		}
 #endif
 
@@ -2711,10 +2710,11 @@ TRACE_PT("writing Parental Control\n");
 			fprintf(fp, "-A %s -p tcp --syn -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
  	}
 */
+#if 0
 	//if (nvram_match("fw_enable_x", "1"))
 	if ( nvram_match("fw_enable_x", "1") && nvram_match("misc_ping_x", "0") )	// ham 0902 //2008.09 magic
 		fprintf(fp, "-A FORWARD -i %s -p icmp -j DROP\n", wan_if);
-
+#endif
 	if (nvram_match("fw_enable_x", "1") && !nvram_match("fw_dos_x", "0"))	// oleg patch
 	{
 		// DoS attacks
@@ -3312,6 +3312,19 @@ TRACE_PT("writing Parental Control\n");
 	}
 	else
 	{
+		if (!nvram_match("misc_ping_x", "0"))
+			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
+#ifdef RTCONFIG_IPV6
+		else if (get_ipv6_service() == IPV6_6IN4)
+		{
+			/* accept ICMP requests from the remote tunnel endpoint */
+			ip = nvram_safe_get("ipv6_tun_v4end");
+			if (*ip && strcmp(ip, "0.0.0.0") != 0)
+				fprintf(fp, "-A INPUT -p icmp -s %s -j %s\n", ip, logaccept);
+		}
+#endif
+		else
+			fprintf(fp, "-A INPUT -p icmp -j %s\n", logdrop);
 #ifndef RTCONFIG_PARENTALCTRL
 		if (nvram_match("macfilter_enable_x", "1"))
 		{
@@ -3414,20 +3427,6 @@ TRACE_PT("writing Parental Control\n");
 			if(nvram_get_int("st_webdav_mode")!=0) {
 				fprintf(fp, "-A INPUT -p tcp -m tcp --dport %s -j %s\n", nvram_safe_get("webdav_https_port"), logaccept);	// oleg patch
 			}
-		}
-#endif
-
-		if (!nvram_match("misc_ping_x", "0"))
-		{
-			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
-		}
-#ifdef RTCONFIG_IPV6
-		else if (get_ipv6_service() == IPV6_6IN4)
-		{
-			/* accept ICMP requests from the remote tunnel endpoint */
-			ip = nvram_safe_get("ipv6_tun_v4end");
-			if (*ip && strcmp(ip, "0.0.0.0") != 0)
-				fprintf(fp, "-A INPUT -p icmp -s %s -j %s\n", ip, logaccept);
 		}
 #endif
 
@@ -3724,11 +3723,11 @@ TRACE_PT("writing Parental Control\n");
 			continue;
 
 		wan_if = get_wan_ifname(unit);
-
+#if 0
 		//if (nvram_match("fw_enable_x", "1"))
 		if ( nvram_match("fw_enable_x", "1") && nvram_match("misc_ping_x", "0") )	// ham 0902 //2008.09 magic
 			fprintf(fp, "-A FORWARD -i %s -p icmp -j DROP\n", wan_if);
-
+#endif
 		if (nvram_match("fw_enable_x", "1") && !nvram_match("fw_dos_x", "0"))	// oleg patch
 		{
 			// DoS attacks

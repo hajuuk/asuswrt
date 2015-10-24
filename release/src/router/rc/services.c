@@ -552,6 +552,20 @@ void create_passwd(void)
 #endif
 }
 
+int ate_cond()
+{
+	switch(get_model()){
+		case MODEL_RPAC68U:
+			if(!strcmp(nvram_safe_get("ATEMODE"), "1"))
+				return 0;
+			break;
+		default:
+			break;
+	}
+
+	return 1;
+}
+
 void get_dhcp_pool(char **dhcp_start, char **dhcp_end, char *buffer)
 {
 	if (dhcp_start == NULL || dhcp_end == NULL || buffer == NULL)
@@ -1926,6 +1940,9 @@ int start_networkmap(int bootwait)
 	//if (!is_routing_enabled())
 	//	return 0;
 
+	if(ate_cond() == 0)
+		return 0;
+
 	stop_networkmap();
 
 	if (bootwait)
@@ -2288,7 +2305,7 @@ start_ddns(void)
 	if (asus_ddns) {
 		char *nserver = nvram_invmatch("ddns_serverhost_x", "") ?
 			nvram_safe_get("ddns_serverhost_x") :
-			"ns1.asuscomm.com";
+			"nwsrv-ns1.asus.com";
 		eval("ez-ipupdate",
 		     "-S", service, "-i", wan_ifname, "-h", host,
 		     "-A", "2", "-s", nserver,
@@ -2378,7 +2395,7 @@ asusddns_reg_domain(int reg)
 
 	nserver = nvram_invmatch("ddns_serverhost_x", "") ?
 		    nvram_safe_get("ddns_serverhost_x") :
-		    "ns1.asuscomm.com";
+		    "nwsrv-ns1.asus.com";
 
 	eval("ez-ipupdate",
 	     "-S", "dyndns", "-i", wan_ifname, "-h", nvram_safe_get("ddns_hostname_x"),
@@ -3694,6 +3711,8 @@ int start_wanduck(void)
 	if(sw_mode != SW_MODE_ROUTER && sw_mode != SW_MODE_REPEATER)
 		return -1;
 #endif
+	if(ate_cond() == 0)
+		return 0;
 
 	if(!strcmp(nvram_safe_get("wanduck_down"), "1"))
 		return 0;
@@ -4031,6 +4050,12 @@ again:
 #endif
 		stop_wan();
 #ifdef RTCONFIG_USB
+#ifdef RTCONFIG_USB_MODEM
+#if defined(RTCONFIG_JFFS2) || defined(RTCONFIG_BRCM_NAND_JFFS2) || defined(RTCONFIG_UBIFS)
+		eval("rm", "-rf", "/jffs/sim");
+#endif
+#endif
+
 		if (get_model() == MODEL_RTN53){
 			eval("wlconf", "eth2", "down");
 			modprobe_r("wl_high");
@@ -4239,6 +4264,7 @@ again:
 			// including switch setting
 			// used for system mode change and vlan setting change
 			sleep(2); // wait for all httpd event done
+			stop_networkmap();
 			stop_httpd();
 			stop_dnsmasq();
 #if defined(RTCONFIG_MDNS)
@@ -4306,6 +4332,7 @@ again:
 			start_lan_port(0);
 
 			start_httpd();
+			start_networkmap(0);
 			start_wl();
 			lanaccess_wl();
 #ifdef RTCONFIG_BCMWL6
@@ -4597,6 +4624,7 @@ check_ddr_done:
 		(get_model() == MODEL_APN12HP) ||
 		(get_model() == MODEL_RTN66U) ||
 		(get_model() == MODEL_RTN18U) ||
+		(get_model() == MODEL_RTAC5300) ||
 		(get_model() == MODEL_RTAC88U))
 			set_wltxpower();
 		else
@@ -4642,7 +4670,7 @@ check_ddr_done:
 			if(action & RC_SERVICE_START) 
 			{
 				remove_dsl_autodet();
-				convert_dsl_wan_settings(2);
+				dsl_configure(2);
 				start_wan_if(atoi(cmd[1]));
 			}
 		}
@@ -4658,7 +4686,7 @@ check_ddr_done:
 // qis
 			remove_dsl_autodet();
 			stop_wan_if(atoi(cmd[1]));
-			convert_dsl_wan_settings(2);
+			dsl_configure(2);
 			start_wan_if(atoi(cmd[1]));
 			restart_wireless();
 		}
@@ -5003,11 +5031,33 @@ check_ddr_done:
 		if(strlen(isp) > 0)
 			_eval(at_cmd, ">/tmp/modem_action.ret", 0, NULL);
 	}
-	else if(!strncmp(script, "resetcount", 10)){
-		char *at_cmd[] = {"modem_status.sh", "bytes-", NULL};
+#if defined(RTCONFIG_JFFS2) || defined(RTCONFIG_BRCM_NAND_JFFS2) || defined(RTCONFIG_UBIFS)
+	else if(!strncmp(script, "datacount", 10)){
+		char *at_cmd[] = {"modem_status.sh", "bytes", NULL};
 
 		_eval(at_cmd, ">/tmp/modem_action.ret", 0, NULL);
 	}
+	else if(!strncmp(script, "resetcount", 10)){
+		time_t now;
+		char timebuf[32];
+		char *at_cmd[] = {"modem_status.sh", "bytes-", NULL};
+
+		time(&now);
+		snprintf(timebuf, 32, "%d", (int)now);
+		nvram_set("modem_bytes_data_start", timebuf);
+
+		_eval(at_cmd, ">/tmp/modem_action.ret", 0, NULL);
+	}
+	else if(!strncmp(script, "sim_del", 10)){
+		char sim_order[32];
+		char *at_cmd[] = {"modem_status.sh", "imsi_del", sim_order, NULL};
+		_dprintf("sim_del: %s.\n", cmd[1]);
+
+		snprintf(sim_order, 32, "modem_sim_imsi%s", cmd[1]);
+
+		_eval(at_cmd, ">/tmp/modem_action.ret", 0, NULL);
+	}
+#endif
 #endif // RTCONFIG_USB_MODEM
 #endif // RTCONFIG_USB
 	else if(!strncmp(script, "webs_", 5))
