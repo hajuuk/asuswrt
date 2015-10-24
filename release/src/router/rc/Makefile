@@ -130,7 +130,7 @@ ifeq ($(RTCONFIG_DSL),y)
 OBJS += init-ralink-dsl.o 
 endif
 else ifeq ($(RTCONFIG_QCA),y)
-OBJS += init-qca.o wps-qca.o qca.o ctl.o
+OBJS += init-qca.o wps-qca.o qca.o $(if $(wildcard sysdeps/qca/ctl.c),ctl.o,prebuild/ctl.o)
 else
 OBJS += init-broadcom.o wps-broadcom.o broadcom.o
 ifeq ($(RTCONFIG_DSL),y)
@@ -272,6 +272,10 @@ ifeq ($(RTAC68U),y)
 OBJS += sysdeps/broadcom/cfe.o
 endif
 
+ifeq ($(RTCONFIG_TR069),y)
+OBJS += tr069.o
+endif
+
 ifeq ($(RTCONFIG_BCMARM),y)
 ifeq ($(RTCONFIG_QTN),y)
 vpath %.c sysdeps sysdeps/broadcom sysdeps/qtn $(TOP)/libqcsapi_client/qcsapi_rpc_common/client $(TOP)/sysdeps/qtn $(SRCBASE)/shared
@@ -374,6 +378,10 @@ endif
 	@cd $(INSTALLDIR)/sbin && ln -sf rc rtkswitch
 endif
 
+ifeq ($(RTCONFIG_RTL8365MB),y)
+	@cd $(INSTALLDIR)/sbin && ln -sf rc rtkswitch
+endif
+
 ifeq ($(RTCONFIG_QCA),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc rtkswitch
 	@cd $(INSTALLDIR)/sbin && ln -sf rc delay_exec
@@ -385,6 +393,7 @@ endif
 ifeq ($(RTCONFIG_USB),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc get_apps_name
 	@cd $(INSTALLDIR)/sbin && ln -sf rc asus_sd
+	@cd $(INSTALLDIR)/sbin && ln -sf rc asus_mmc
 	@cd $(INSTALLDIR)/sbin && ln -sf rc asus_lp
 	@cd $(INSTALLDIR)/sbin && ln -sf rc asus_sg
 	@cd $(INSTALLDIR)/sbin && ln -sf rc asus_sr
@@ -475,6 +484,9 @@ endif
 ifeq ($(and $(RTCONFIG_IPV6),$(RTCONFIG_WIDEDHCP6)),y)
 	@cd $(INSTALLDIR)/sbin && ln -sf rc stop_ipv6
 	@cd $(INSTALLDIR)/sbin && ln -sf rc start_dhcp6c
+endif
+ifeq ($(RTCONFIG_TR069),y)
+	@cd $(INSTALLDIR)/sbin && ln -sf rc dhcpc_lease
 endif
 
 clean:

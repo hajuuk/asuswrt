@@ -58,6 +58,8 @@ extern const char APCLI_2G[];
 
 #if defined(RTN65U)
 #define RT_802_11_MAC_ENTRY_for_2G		RT_802_11_MAC_ENTRY_RT3352_iNIC
+#elif defined(RTN56UB1)
+#define RT_802_11_MAC_ENTRY_for_2G		RT_802_11_MAC_ENTRY_7603E
 #else
 #define RT_802_11_MAC_ENTRY_for_2G		RT_802_11_MAC_ENTRY_2G
 #endif
@@ -165,6 +167,21 @@ typedef struct _RT_802_11_MAC_ENTRY_2G {
     short		StreamSnr[3];	/* BF SNR from RXWI. Units=0.25 dB. 22 dB offset removed */
     short		SoundingRespSnr[3];
 } RT_802_11_MAC_ENTRY_2G, *PRT_802_11_MAC_ENTRY_2G;
+
+typedef struct _RT_802_11_MAC_ENTRY_7603E {
+    unsigned char  ApIdx;
+    unsigned char Addr[ETHER_ADDR_LEN];
+    unsigned char Aid;
+    unsigned char Psm;              /* 0:PWR_ACTIVE, 1:PWR_SAVE */
+    unsigned char MimoPs;           /* 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled */
+    char AvgRssi0;
+    char AvgRssi1;
+    char AvgRssi2;
+    unsigned int ConnectedTime;
+    MACHTTRANSMIT_SETTING_2G    TxRate;
+    unsigned int LastRxRate;
+} RT_802_11_MAC_ENTRY_7603E, *PRT_802_11_MAC_ENTRY_7603E;
+
 
 typedef struct _RT_802_11_MAC_ENTRY_11AC {
     unsigned char	ApIdx;
@@ -316,7 +333,7 @@ typedef enum _RT_802_11_PHY_MODE {
 #define OFFSET_MAC_ADDR_2G	0x40004 //only one MAC
 #define OFFSET_MAC_GMAC2	0x4018E
 #define OFFSET_MAC_GMAC0	0x40194
-#elif defined(RTAC52U) || defined(RTAC51U) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UV2)
+#elif defined(RTAC52U) || defined(RTAC51U) || defined(RTN54U) || defined(RTAC54U) || defined(RTAC1200HP) || defined(RTN56UB1)
 #define OFFSET_MAC_ADDR_2G	0x40004
 #define OFFSET_MAC_ADDR		0x48004
 #define OFFSET_MAC_GMAC0	0x40022
@@ -327,7 +344,7 @@ typedef enum _RT_802_11_PHY_MODE {
 #define OFFSET_MAC_GMAC2	0x40022
 #define OFFSET_MAC_GMAC0	0x40028
 #endif
-#if defined(RTAC1200HP)
+#if defined(RTAC1200HP) || defined(RTN56UB1)
 #define OFFSET_FIX_CHANNEL      0x40170
 #endif
 #define OFFSET_PIN_CODE		0x40180

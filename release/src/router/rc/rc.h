@@ -54,7 +54,13 @@
 #endif
 #else
 #endif
+
+#if defined(RTN56UB1) //for MT7621
+#define USB20_MOD	"xhci-hcd"
+#else
 #define USB20_MOD	"ehci-hcd"
+#endif
+
 #define USBSTORAGE_MOD	"usb-storage"
 #define SCSI_MOD	"scsi_mod"
 #define SD_MOD		"sd_mod"
@@ -307,7 +313,8 @@ extern int __need_to_start_wps_band(char *prefix);
 extern int need_to_start_wps_band(int wps_band);
 extern int getEEPROM(unsigned char *outbuf, unsigned short *lenpt, char *area);
 extern void hexdump(unsigned char *pt, unsigned short len);
-extern void setCTL(char *);
+extern void setCTL(const char *);
+extern int verify_ctl_table(void);
 #ifdef RTCONFIG_ATEUSB3_FORCE
 extern int getForceU3(void);
 extern int setForceU3(const char *val);
@@ -963,10 +970,19 @@ extern int lteled_main(int argc, char **argv);
 extern int start_lteled(void);
 extern int stop_lteled(void);
 #endif
+#ifdef RTCONFIG_TOR
+extern void start_Tor_proxy(void);
+#endif
 
 #ifdef RTCONFIG_IPERF
 // monitor.c
 extern int monitor_main(int argc, char *argv[]);
+#endif
+
+#ifdef RTCONFIG_TR069
+extern int start_tr(void);
+extern void stop_tr(void);
+extern int dhcpc_lease_main(int argc, char *argv[]);
 #endif
 
 #ifdef BTN_SETUP

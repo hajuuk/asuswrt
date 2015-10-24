@@ -38,7 +38,7 @@
 	*margin-top:27px;	
 	margin-left:231px;
 	*margin-left:-133px;
-	width:145px;
+	width:360px;
 	text-align:left;	
 	height:auto;
 	overflow-y:auto;
@@ -71,10 +71,6 @@
 </style>
 <script>
 var $j = jQuery.noConflict();
-
-wan_route_x = '<% nvram_get("wan_route_x"); %>';
-wan_nat_x = '<% nvram_get("wan_nat_x"); %>';
-
 <% wl_get_parameter(); %>
 
 // merge wl_maclist_x
@@ -290,8 +286,8 @@ function showWLMACList(){
 	var wireless_flag = 0;
 	for(i=0;i<clientList.length;i++){
 		if(clientList[clientList[i]].isWL != 0){		//0: wired, 1: 2.4GHz, 2: 5GHz, filter clients under current band
-			wireless_flag = 1;			
-			code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientmac(\''+clientList[i]+'\');"><strong>'+clientList[clientList[i]].name+'</strong> ';
+			wireless_flag = 1;
+			code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientmac(\''+clientList[i]+'\');"><strong>'+clientList[clientList[i]].name+' ( '+clientList[i]+' )</strong> ';
 			code += ' </div></a>';
 		}
 	}

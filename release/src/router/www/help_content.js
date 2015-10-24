@@ -65,7 +65,7 @@ helpcontent[3] = new Array("",
 							"<#WLANConfig11b_x_ImpBeam_desc#> (It's also called [Implicit Beamforming].)",
 							"<#WLANConfig11b_x_AMPDU_desc#>",
 							"<#WLANConfig11b_x_ACK_desc#>",
-							"<#WLANConfig11b_x_TurboQAM_desc#> Wireless Mode must be Auto.",
+							"<#WLANConfig11b_x_TurboQAM_desc#> <#WLANConfig11b_x_Auto#>",
 							"<#WLANConfig11b_x_ReduceUSB3_desc#>",
 							"<#RTS_for_AMPDU#>",
 							"<#WLANConfig11b_x_roamingassit_desc#>",	//31
@@ -76,6 +76,7 @@ helpcontent[4] = new Array("",
 						   "<#LANHostConfig_IPRouters_itemdesc#>",
 						   "<#LANHostConfig_SubnetMask_itemdesc#>",
 						   "<#LANHostConfig_x_Gateway_itemdesc#>");
+
 helpcontent[5] = new Array("",
 							 "<#LANHostConfig_DHCPServerConfigurable_itemdesc#>",
 							 "<#LANHostConfig_DomainName_itemdesc#><#LANHostConfig_DomainName_itemdesc2#>",
@@ -256,6 +257,7 @@ helpcontent[24] = new Array("",
 							"<#qis_pppoe_help1#>",												//7,27
 							"<#qis_wireless_help1#>",											//0,22	
 							"<#qis_wireless_help2#>");										//0,23
+
 //DSL
 helpcontent[25] = new Array("",
 							"<#DSL_Stab_Adjustment#>",
@@ -270,7 +272,9 @@ helpcontent[25] = new Array("",
 							"This item allows system to monitor the ADSL line, designed to maintain stability of the line. Based on current line condition necessary changes will be adopted.",
 							"This feature allows system to capture diagnostic DSL debug log in the background, duration depends on the \"Diagnostic debug log capture duration\" option, after capture completed debug log would be transmitted automatically to ASUS Support Team for analysis.",
 							"The G.INP stands for Impulse Noise Protection. It works on ADSL2, ADSL2+, and VDSL2 only. It is enabled to provide enhanced protection against impulse noise or to increase the efficiency of providing impulse noise protection. If your DSLAM does not support it, please disable it.",
-							"This item configures Rx AGC(Auto Gain Control) GAIN for ADSL, if tweak the Stability Adjustment (ADSL) setting still could not get desired downstream speed, then could try to set Rx AGC GAIN Adjustment to High Performance mode. However if your ADSL connection is unstable and has some CRC then could set to Stable mode."
+							"This item configures Rx AGC(Auto Gain Control) GAIN for ADSL, if tweak the Stability Adjustment (ADSL) setting still could not get desired downstream speed, then could try to set Rx AGC GAIN Adjustment to High Performance mode. However if your ADSL connection is unstable and has some CRC then could set to Stable mode.",
+							"This item supports G.vector. With G.vector crosstalk among the signals in the same cable could be canceled, such as far-end crosstalk (FEXT). Which would significantly improve Signal-to-Noise Ratio (SNR) that leads to higher achievable bit rates. However CO must deploy Vectored VDSL2 DSLAM in order for this feature to work. If you find it doesn't work well or you know the G.vector of your ISP is non-standard, please enable both of this option and Non-standard G.vector.",
+							"This item supports Non-standard G.vector for specific countries. Please note that if your G.vector is standard, please do not enable this option for optimized performance."
 							);
 							
 //DualWAN
@@ -286,3 +290,8 @@ helpcontent[27] = new Array("",
 							"<#YandexDNS_mode0#>: <#YandexDNS_mode0desc#><br>" +
 							"<#YandexDNS_mode1#>: <#YandexDNS_mode1desc#><br>" +
 							"<#YandexDNS_mode2#>: <#YandexDNS_mode2desc#>");
+
+if('<% nvram_default_get("lan_ipaddr"); %>' != "192.168.1.1"){
+	helpcontent[4][1] = "<#LANHostConfig_IPRouters_itemdesc#>".replace("192.168.1.1", '<% nvram_default_get("lan_ipaddr"); %>');
+	helpcontent[24][5] = "<#LANHostConfig_IPRouters_itemdesc#>".replace("192.168.1.1", '<% nvram_default_get("lan_ipaddr"); %>');
+}

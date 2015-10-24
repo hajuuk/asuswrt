@@ -32,6 +32,9 @@
 #include "shutils.h"
 #include "shared.h"
 
+#ifndef ETHER_ADDR_LEN
+#define	ETHER_ADDR_LEN		6
+#endif
 
 extern char *read_whole_file(const char *target){
 	FILE *fp;
@@ -542,7 +545,7 @@ void set_action(int a)
 	}
 	if (!s)
 		snprintf(act.comm, sizeof(act.comm), "%d <UNKNOWN>", act.pid);
-	_dprintf("set_action %d\n", act.action);
+	_dprintf("%d: set_action %d\n", getpid(), act.action);
 	while (f_write_excl(ACTION_LOCK, &act, sizeof(act), 0, 0600) != sizeof(act)) {
 		sleep(1);
 		if (--r == 0) return;
@@ -561,7 +564,7 @@ static int __check_action(struct action_s *pa)
 	}
 	if (pa)
 		*pa = act;
-	_dprintf("check_action %d\n", act.action);
+	_dprintf("%d: check_action %d\n", getpid(), act.action);
 
 	return act.action;
 }
@@ -1032,6 +1035,7 @@ void bcmvlan_models(int model, char *vlan)
 	case MODEL_RTN15U:
 	case MODEL_RTAC53U:
 	case MODEL_RTAC3200:
+	case MODEL_RTAC88U:
 		strcpy(vlan, "vlan1");
 		break;
 	case MODEL_RTN53:
@@ -1182,7 +1186,11 @@ unsigned int netdev_calc(char *ifname, char *ifname_desc, unsigned long *rx, uns
 	else if (ifname && (unit = get_wan_unit(ifname)) >= 0)	{
 		if (dualwan_unit__nonusbif(unit)) {
 #if defined(RA_ESW)
+#if defined(RTCONFIG_RALINK_MT7620)
 			get_mt7620_wan_unit_bytecount(unit, tx, rx);
+#elif defined(RTCONFIG_RALINK_MT7621)
+			get_mt7621_wan_unit_bytecount(unit, tx, rx);
+#endif			
 #endif
 			if(strlen(modelvlan) && strcmp(ifname, "eth0")==0) {
 				backup_rx = *rx;
@@ -1639,3 +1647,59 @@ int get_yandex_dns(int family, int mode, char **server, int max_count)
 	return count;
 }
 #endif
+
+#ifdef RTCONFIG_BWDPI
+/*
+	usage in rc or bwdpi for checking service
+*/
+int check_bwdpi_nvram_setting()
+{
+	int enabled = 1;
+	int debug = nvram_get_int("bwdpi_debug");
+
+	// check no qos service
+	if(nvram_get_int("wrs_enable") == 0 && nvram_get_int("wrs_app_enable") == 0 && 
+		nvram_get_int("wrs_vp_enable") == 0 && nvram_get_int("wrs_cc_enable") == 0 &&
+		nvram_get_int("wrs_mals_enable") == 0 &&
+		nvram_get_int("wrs_adblock_popup") == 0 && nvram_get_int("wrs_adblock_stream") == 0 &&
+		nvram_get_int("bwdpi_db_enable") == 0 &&
+		nvram_get_int("qos_enable") == 0)
+		enabled = 0;
+
+	// check traditional qos service
+	if(nvram_get_int("wrs_enable") == 0 && nvram_get_int("wrs_app_enable") == 0 && 
+		nvram_get_int("wrs_vp_enable") == 0 && nvram_get_int("wrs_cc_enable") == 0 &&
+		nvram_get_int("wrs_mals_enable") == 0 &&
+		nvram_get_int("wrs_adblock_popup") == 0 && nvram_get_int("wrs_adblock_stream") == 0 &&
+		nvram_get_int("bwdpi_db_enable") == 0 &&
+		nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") == 0)
+		enabled = 0;
+
+	if(debug) dbg("[check_bwdpi_nvram_setting] enabled= %d\n", enabled);
+
+	return enabled;
+}
+#endif
+
+int get_iface_hwaddr(char *name, unsigned char *hwaddr)
+{
+	struct ifreq ifr;
+	int ret = 0;
+	int s;
+
+	/* open socket to kernel */
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		perror("socket");
+		return errno;
+	}
+
+	/* do it */
+	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name)-1);
+	ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
+	if ((ret = ioctl(s, SIOCGIFHWADDR, &ifr)) == 0)
+		memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, ETHER_ADDR_LEN);
+
+	/* cleanup */
+	close(s);
+	return ret;
+}

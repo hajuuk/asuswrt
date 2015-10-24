@@ -1934,6 +1934,12 @@ static int validate_apply(webs_t wp) {
 
 	if(nvram_modified)
 	{
+#ifdef RTCONFIG_TR069
+		if(pids("tr069")) {
+			_dprintf("value change from web!\n");
+			eval("sendtocli", "http://127.0.0.1:1234/web/value/change", "\"name=change\"");
+		}
+#endif
 		// TODO: is it necessary to separate the different?
 		if(nvram_match("x_Setting", "0")){
 			nvram_set("x_Setting", "1");
@@ -3068,20 +3074,11 @@ static int secondary_wanlink_hook(int eid, webs_t wp, int argc, char_t **argv){
 	wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
 
 	if (dualwan_unit__usbif(unit)) {
-		if(wan_state == WAN_STATE_INITIALIZING){
-			status = 0;
-		}
-		else if(wan_state == WAN_STATE_CONNECTING){
-			status = 0;
-		}
-		else if(wan_state == WAN_STATE_DISCONNECTED){
-			status = 0;
-		}
-		else if(wan_state == WAN_STATE_STOPPED){
-			status = 0;
+		if(wan_state == WAN_STATE_CONNECTED){
+			status = 1;
 		}
 		else{
-			status = 1;
+			status = 0;
 		}
 	}
 	else if(wan_state == WAN_STATE_DISABLED){
@@ -5374,6 +5371,30 @@ static int ej_get_simact_result(int eid, webs_t wp, int argc, char_t **argv){
 	return 0;
 }
 
+static int ej_modemuptime(int eid, webs_t wp, int argc, char_t **argv){
+	int ret = 0;
+	unsigned int now, start = atoi(nvram_safe_get("usb_modem_act_startsec"));
+	char *str;
+
+	if(start <= 0){
+		ret = websWrite(wp, "0");
+		return ret;
+	}
+
+	str = file2str("/proc/uptime");
+	if(!str){
+		ret = websWrite(wp, "0");
+		return ret;
+	}
+
+	now = atoi(str);
+	free(str);
+
+	ret = websWrite(wp, "%u", (now-start));
+
+	return ret;
+}
+
 #else
 static int ej_show_usb_path(int eid, webs_t wp, int argc, char_t **argv){
 	websWrite(wp, "[]");
@@ -5601,7 +5622,8 @@ apply_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
 	char *action_para;
 	char *current_url;
 	char command[32];
-
+	int i=0, j=0, len=0;
+	
 	action_mode = websGetVar(wp, "action_mode","");
 	current_url = websGetVar(wp, "current_page", "");
 	_dprintf("apply: %s %s\n", action_mode, current_url);
@@ -5625,12 +5647,19 @@ apply_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
 	{
 		char *system_cmd;
 		system_cmd = websGetVar(wp, "SystemCmd","");
+		len = strlen(system_cmd);
 
-		if(strchr(system_cmd, '&') || strchr(system_cmd, ';') || strchr(system_cmd, '%') || strchr(system_cmd, '|') || strchr(system_cmd, '\n') || strchr(system_cmd, '\r')){
-			_dprintf("[httpd] Invalid SystemCmd!\n");
-			strcpy(SystemCmd, "");
+		for(i=0;i<len;i++){
+			if (isalnum(system_cmd[i]) != 0 || system_cmd[i] == ':' || system_cmd[i] == '-' || system_cmd[i] == '_' || system_cmd[i] == '.' || isspace(system_cmd[i]) != 0)
+				j++;
+			else{
+				_dprintf("[httpd] Invalid SystemCmd!\n");
+				strcpy(SystemCmd, "");	
+				websRedirect(wp, current_url);
+				return 0;
+			}				
 		}
-		else if(!strcmp(current_url, "Main_Netstat_Content.asp") && (
+		if(!strcmp(current_url, "Main_Netstat_Content.asp") && (
 			strncasecmp(system_cmd, "netstat", 7) == 0
 		)){
 			strncpy(SystemCmd, system_cmd, sizeof(SystemCmd));
@@ -5648,10 +5677,14 @@ apply_cgi(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg,
 			strncpy(SystemCmd, system_cmd, sizeof(SystemCmd));
 			sys_script("syscmd.sh");
 		}
-		else if(!strcmp(current_url, "Main_AdmStatus_Content.asp") && (
-			strncasecmp(system_cmd, "run_telnetd", 11) == 0
-		)){
-			strncpy(SystemCmd, system_cmd, sizeof(SystemCmd));
+		else if(!strcmp(current_url, "Main_AdmStatus_Content.asp"))
+		{
+			if(strncasecmp(system_cmd, "run_telnetd", 11) == 0){
+				strncpy(SystemCmd, system_cmd, sizeof(SystemCmd));
+				sys_script("syscmd.sh");				
+			}else if(strncasecmp(system_cmd, "run_infosvr", 11) == 0){
+				nvram_set("ateCommand_flag", "1");
+			}
 		}
 		else{
 			_dprintf("[httpd] Invalid SystemCmd!\n");
@@ -6413,7 +6446,7 @@ do_upgrade_post(char *url, FILE *stream, int len, char *boundary)
 #endif
 	upgrade_err = 0;
 
-#if defined(RTN65U) || defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTAC55U) || defined(RTN11P)
+#if defined(RTCONFIG_QCA) || defined(RTN65U) || defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P)
 	if (!stop_upgrade_once) {
 		notify_rc_and_wait_1min("stop_upgrade");
 		stop_upgrade_once = 1;
@@ -6882,12 +6915,49 @@ void wo_bwmbackup(char *url, webs_t wp)
 }
 // end Viz ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+static int
+prf_file(webs_t wp, char_t *urlPrefix, char_t *webDir, int arg, char_t *url, char_t *path, char_t *query)
+{
+	char *ddns_flag;
+	char *ddns_mac;
+	char *ddns_hostname_tmp;
+	char model_name;
+	
+	model_name = get_model();
+	
+	if(model_name == MODEL_RTN56U || model_name == MODEL_RTAC87U){
+		ddns_mac = nvram_get("et1macaddr");
+	}
+	else{
+		ddns_mac = nvram_get("et0macaddr");	
+	}
+	
+	ddns_flag = websGetVar(wp, "path", "");
+
+	if(strcmp(ddns_flag, "0") == 0){
+		ddns_hostname_tmp = nvram_get("ddns_hostname_x");
+		nvram_set("ddns_transfer", "");
+		nvram_set("ddns_hostname_x", "");
+	}
+	else{
+		nvram_set("ddns_transfer", ddns_mac);
+	}
+
+	nvram_commit();
+	sys_download("/tmp/settings");
+
+	if(strcmp(ddns_flag, "0") == 0){
+		nvram_set("ddns_hostname_x", ddns_hostname_tmp);
+		nvram_commit();
+	}
+
+	do_file("/tmp/settings", wp);
+}
+
 static void
 do_prf_file(char *url, FILE *stream)
 {
-	nvram_commit();
-	sys_download("/tmp/settings");
-	do_file("/tmp/settings", stream);
+    prf_file(stream, NULL, NULL, 0, url, NULL, NULL);
 }
 
 static void
@@ -7033,7 +7103,7 @@ struct mime_handler mime_handlers[] = {
 
 	{ "**.js",  "text/javascript", no_cache_IE7, NULL, do_ej, do_auth },
 	{ "**.cab", "text/txt", NULL, NULL, do_file, do_auth },
-	{ "**.CFG", "application/force-download", NULL, NULL, do_prf_file, do_auth },
+	{ "**.CFG", "application/force-download", NULL, do_html_post_and_get, do_prf_file, do_auth },
 	{ "ftpServerTree.cgi*", "text/html", no_cache_IE7, do_html_post_and_get, do_ftpServerTree_cgi, do_auth },//andi
 	{ "**.ovpn", "application/force-download", NULL, NULL, do_prf_ovpn_file, do_auth },
 	{ "apply.cgi*", "text/html", no_cache_IE7, do_html_post_and_get, do_apply_cgi, do_auth },
@@ -7072,6 +7142,9 @@ struct except_mime_handler except_mime_handlers[] = {
 	{ "popup.js", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
 	{ "general.js", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
 	{ "help.js", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
+	{ "help_content.js", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
+	{ "validator.js", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
+	{ "form.js", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
 	{ "start_autodet.asp", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
 	{ "start_dsl_autodet.asp", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
 	{ "start_apply.htm", MIME_EXCEPTION_NOAUTH_FIRST|MIME_EXCEPTION_NORESETTIME},
@@ -8250,7 +8323,7 @@ int ej_initial_account(int eid, webs_t wp, int argc, char **argv){
 	disk_info_t *disks_info, *follow_disk;
 	partition_info_t *follow_partition;
 	char *command;
-	int len, result;
+	int len;
 	char *fn = "initial_account_error";
 
 	nvram_set("acc_num", "0");
@@ -8275,7 +8348,7 @@ int ej_initial_account(int eid, webs_t wp, int argc, char **argv){
 				sprintf(command, "rm -f %s/.__*", follow_partition->mount_point);
 				command[len] = 0;
 
-				result = system(command);
+				system(command);
 				free(command);
 
 				initial_folder_list(follow_partition->mount_point);
@@ -9369,7 +9442,7 @@ int ej_webdavInfo(int eid, webs_t wp, int argc, char **argv) {
 
 // 2010.09 James. {
 int start_autodet(int eid, webs_t wp, int argc, char **argv) {
-	notify_rc("start_autodet");
+	notify_rc_after_period_wait("start_autodet", 0);
 	return 0;
 }
 #if defined(CONFIG_BCMWL5) || (defined(RTCONFIG_RALINK) && defined(RTCONFIG_WIRELESSREPEATER)) || defined(RTCONFIG_QCA)
@@ -10128,62 +10201,66 @@ int ej_memory_usage(int eid, webs_t wp, int argc, char_t **argv){
 	fscanf(fp, "MemFree: %lu %s\n", &mfree, buf);	
 	used = total - mfree;
 	fclose(fp);
-	websWrite(wp, "Total =%lu \n", total);
-	websWrite(wp, "Free =%lu \n", mfree);
-	websWrite(wp, "Used =%lu \n", used);
-
+	websWrite(wp, "<mem_info>\n");	
+	websWrite(wp, "<total>%lu</total>\n", total);	
+	websWrite(wp, "<free>%lu</free>\n", mfree);	
+	websWrite(wp, "<used>%lu</used>\n", used);	
+	websWrite(wp, "</mem_info>\n");	
 	return 0;
 }
 
-unsigned long prev_total_0 = 0;
-unsigned long prev_user_0 = 0;
-#ifdef RTCONFIG_BCMSMP	
-unsigned long prev_total_1 = 0;
-unsigned long prev_user_1 = 0;
-#endif
-
 int ej_cpu_usage(int eid, webs_t wp, int argc, char_t **argv){
 	unsigned long total, user, nice, system, idle, io, irq, softirq;
-	unsigned long total_0_diff = 0, user_0_diff = 0, cpu0_percentage;
-#ifdef RTCONFIG_BCMSMP	
-	unsigned long total_1_diff = 0, user_1_diff = 0, cpu1_percentage;
-#endif
-
 	char name[10];
 	FILE *fp; 
 	fp = fopen("/proc/stat", "r");
+	int i = 0;;
 	
 	if(fp == NULL)
 		return -1;
 	
+	websWrite(wp, "<cpu_info>\n");	
 	while(fscanf(fp, "%s %lu %lu %lu %lu %lu %lu %lu \n", name, &user, &nice, &system, &idle, &io, &irq, &softirq) != EOF){
-		if(strcmp(name, "cpu0") == 0){
-						total = user + nice + system + idle + io + irq + softirq;
-			total_0_diff = total - prev_total_0;
-			user_0_diff = (system + user + nice + io + irq + softirq) - prev_user_0;
-			prev_total_0 = total;
-			prev_user_0 = system + user + nice + io + irq + softirq;
+		if(strncmp(name, "cpu", 3) == 0){
+			if(i == 0){
+				i++;
+				continue;
+			}
+			
+			total = user + nice + system + idle + io + irq + softirq;			
+			websWrite(wp, "<cpu>\n");	
+			websWrite(wp, "<total>%lu</total>\n", total);	
+			websWrite(wp, "<usage>%lu</usage>\n", total - idle);	
+			websWrite(wp, "</cpu>\n");	
 		}	
-#ifdef RTCONFIG_BCMSMP		
-		else if(strcmp(name, "cpu1") == 0){
-			total = user + nice + system + idle + io + irq + softirq;
-			total_1_diff = total - prev_total_1;
-			user_1_diff = (system + user + nice + io + irq + softirq) - prev_user_1;
-			prev_total_1 = total;
-			prev_user_1 = system + user + nice + io + irq + softirq;
-		}	
-#endif		
+	}
+	
+	fclose(fp);
+	websWrite(wp, "</cpu_info>\n");	
+	return 0;
+}
+
+int ej_cpu_core_num(int eid, webs_t wp, int argc, char_t **argv){
+	char buf[MAX_LINE_SIZE];
+	FILE *fp; 
+	int count = 0;
+	fp = fopen("/proc/cpuinfo", "r");
+
+	if(fp == NULL)
+		return -1;
+
+	while(fgets(buf, MAX_LINE_SIZE, fp)!=NULL){
+		if(strncmp(buf, "processor", 9) == 0){
+			count++;
+		}
+	}
+	
+	fclose(fp);
+	if(count == 0){		//for Braomcom ARM single core
+		count = 1;
 	}
 
-	fclose(fp);
-	cpu0_percentage = (100*user_0_diff/total_0_diff);	
-	websWrite(wp, "cpu_percentage[0] = %lu; \n", cpu0_percentage);	
-#ifdef RTCONFIG_BCMSMP	
-	cpu1_percentage = (100*user_1_diff/total_1_diff);
-	websWrite(wp, "cpu_percentage[1] = %lu; \n", cpu1_percentage);	
-#endif		
-
-	return 0;
+	websWrite(wp, "%d", count);	
 }
 
 static int
@@ -10501,6 +10578,7 @@ struct ej_handler ej_handlers[] = {
 	{ "shown_language_css", ej_shown_language_css},
 	{ "memory_usage", ej_memory_usage},
 	{ "cpu_usage", ej_cpu_usage},
+	{ "cpu_core_num", ej_cpu_core_num},
 #ifdef RTCONFIG_RALINK
 #elif defined(RTCONFIG_QCA)
 #else
@@ -10521,6 +10599,7 @@ struct ej_handler ej_handlers[] = {
 	{ "get_modem_info", ej_get_modem_info},
 	{ "get_isp_scan_results", ej_get_isp_scan_results},
 	{ "get_simact_result", ej_get_simact_result},
+	{ "get_modemuptime", ej_modemuptime},
 	{ "get_AiDisk_status", ej_get_AiDisk_status},
 	{ "set_AiDisk_status", ej_set_AiDisk_status},
 	{ "get_all_accounts", ej_get_all_accounts},

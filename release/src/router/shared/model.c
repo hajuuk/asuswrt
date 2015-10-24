@@ -26,7 +26,8 @@ static const struct model_s model_list[] = {
 	{ "RT-AC52U",	MODEL_RTAC52U	},
 	{ "RT-AC51U",	MODEL_RTAC51U	},
 	{ "RT-N54U",	MODEL_RTN54U	},
-	{ "RT-N56UV2",	MODEL_RTN56UV2	},
+	{ "RT-AC54U",	MODEL_RTAC54U	},
+	{ "RT-N56UB1",	MODEL_RTN56UB1	},
 	{ "RT-N36U3",	MODEL_RTN36U3	},
 	{ "RT-N56U",	MODEL_RTN56U	},
 	{ "RT-N65U",	MODEL_RTN65U	},
@@ -34,6 +35,7 @@ static const struct model_s model_list[] = {
 	{ "RT-AC1200HP",MODEL_RTAC1200HP},
 #elif defined(RTCONFIG_QCA)
 	{ "RT-AC55U",	MODEL_RTAC55U	},
+	{ "RT-AC55UHP",	MODEL_RTAC55UHP	},
 	{ "4G-AC55U",	MODEL_RT4GAC55U	},
 #else
 	{ "RT-N66U",	MODEL_RTN66U	},
@@ -47,6 +49,7 @@ static const struct model_s model_list[] = {
 	{ "RT-AC87U",	MODEL_RTAC87U	},
 	{ "RT-AC53U",	MODEL_RTAC53U	},
 	{ "RT-AC3200",	MODEL_RTAC3200	},
+	{ "RT-AC88U",	MODEL_RTAC88U	},
 	{ "RT-N53",	MODEL_RTN53	},
 	{ "RT-N16",	MODEL_RTN16	},
 	{ "RT-N18U",	MODEL_RTN18U	},

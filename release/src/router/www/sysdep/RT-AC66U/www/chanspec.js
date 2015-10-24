@@ -97,12 +97,12 @@ function wl_chanspec_list_change(){
 									wl_channel_list_5g.splice(index, 1);
 								}
 
-								if(wl_channel_list_5g.indexOf("116") != -1){			// remove channel 116, 
+								if(country == "EU" && wl_channel_list_5g.indexOf("116") != -1){			// remove channel 116, 
 									var index = wl_channel_list_5g.indexOf("116");
 									wl_channel_list_5g.splice(index, 1);
 								}
 		
-								if(wl_channel_list_5g.indexOf("140") != -1){			// remove channel 140
+								if(country == "EU" && wl_channel_list_5g.indexOf("140") != -1){			// remove channel 140
 									index = wl_channel_list_5g.indexOf("140");
 									wl_channel_list_5g.splice(index, 1);
 								}
@@ -522,7 +522,7 @@ function change_channel(obj){
 			}
 		}
 		else if(country == "US" || country == "SG"){			//for acs band1 channel
-			if(based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "RT-AC69U" || based_modelid == "TM-AC1900" ||based_modelid == "DSL-AC68U"
+			if(based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "RT-AC69U" || based_modelid == "DSL-AC68U"
 			|| based_modelid == "RT-AC56U" || based_modelid == "RT-AC56S"
 			|| based_modelid == "RT-AC66U"
 			|| based_modelid == "RT-N66U"

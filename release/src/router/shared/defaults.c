@@ -361,7 +361,7 @@ struct nvram_tuple router_defaults[] = {
 	{ "wl_akm", "", 0 },			/* WPA akm list */
 #ifdef RTCONFIG_BCMWL6
 #ifdef MFP
-	{ "wl_mfp", "0", 0 },			/* Protected Management Frame */
+	{ "wl_mfp", "-1", 0 },			/* Protected Management Frame */
 #endif
 	{ "wl_psr_mrpt", "0", 0 },		/* Default to one level repeating mode */
 #endif
@@ -591,7 +591,7 @@ struct nvram_tuple router_defaults[] = {
 
 #ifdef RTCONFIG_BCMWL6
 	{ "acs_ifnames", "", 0 },
-#if defined (RTAC68U) || defined (RTAC66U) || defined (RTN66U) || defined (RTCONFIG_QTN)
+#if defined (RTAC68U) || defined (RTAC66U) || defined (RTN66U) || defined (RTCONFIG_QTN) || defined (DSL_AC68U)
 	{ "acs_dfs", "0", 0},			/* disable DFS channels for acsd by default */
 #endif
 	{ "acs_band1", "0", 0},
@@ -665,21 +665,21 @@ struct nvram_tuple router_defaults[] = {
 #endif
 #ifdef RTAC3200
 	{"bsd_ifnames", "eth2 eth1 eth3", 0 },
-	{"wl0_bsd_steering_policy", "0 5 3 0 0 0x50", 0 },
-	{"wl1_bsd_steering_policy", "80 5 3 0 300 0x60", 0 },
-	{"wl2_bsd_steering_policy", "0 5 3 0 300 0x40", 0 },
-	{"wl0_bsd_sta_select_policy", "0 0 0 0 0 1 0 0 0 0x240", 0 },
-	{"wl1_bsd_sta_select_policy", "4 0 300 0 0 1 0 0 0 0x60", 0 },
-	{"wl2_bsd_sta_select_policy", "4 0 300 0 0 -1 0 0 0 0x40", 0 },
+	{"wl0_bsd_steering_policy", "0 5 3 -58 0 110 0x22", 0 },
+	{"wl1_bsd_steering_policy", "80 5 3 0 54 433 0x20", 0 },
+	{"wl2_bsd_steering_policy", "0 5 3 0 433 0 0x20", 0 },
+	{"wl0_bsd_sta_select_policy", "4 -58 0 110 0 0 -1 0 0 0 0x122", 0 },
+	{"wl1_bsd_sta_select_policy", "4 -76 0 433 0 0 1 0 0 0 0x020", 0 },
+	{"wl2_bsd_sta_select_policy", "4 0 433 0 0 0 1 0 0 0 0x020", 0 },
 	{"wl0_bsd_if_select_policy", "eth3 eth1", 0 },
 	{"wl1_bsd_if_select_policy", "eth3 eth2", 0 },
 	{"wl2_bsd_if_select_policy", "eth1 eth2", 0 },
 	{"wl0_bsd_if_qualify_policy", "0 0x0", 0 },
 	{"wl1_bsd_if_qualify_policy", "60 0x0", 0 },
 	{"wl2_bsd_if_qualify_policy", "0 0x0", 0 },
+	{"bsd_bounce_detect", "180 1 3600", 0 },
 #endif
 	{"bsd_scheme", "2", 0 },
-	{"bsd_bounce_detect", "180 2 1800", 0 },
 #endif
 #ifdef BCM_SSD
 	{ "ssd_enable", "0", 0 },		/* Disable SSID Steer Daemon */
@@ -706,9 +706,6 @@ struct nvram_tuple router_defaults[] = {
 	{ "ctf_disable_force", 		"0"		},
 #ifdef RTCONFIG_BCMFA
 	{ "ctf_fa_mode",		"0"		},
-#ifdef RTCONFIG_RGMII_BCM_FA
-	{ "ctf_fa_mode_close",		"0"		},
-#endif
 #endif
 #ifdef RTCONFIG_BCMARM
 	{ "ctf_pt_udp",			"0"		},
@@ -809,7 +806,7 @@ struct nvram_tuple router_defaults[] = {
 
 	{ "time_zone", "GMT0" },
 	{ "time_zone_dst", "0" },
-	{ "time_zone_dstoff", "" },
+	{ "time_zone_dstoff", "M3.2.0/2,M10.2.0/2" },
 	{ "ntp_server1", "time.nist.gov" },
 	{ "ntp_server0", "pool.ntp.org" },
 
@@ -888,7 +885,9 @@ struct nvram_tuple router_defaults[] = {
 	{ "wan_pppoe_ac", ""},		/* PPPoE access concentrator name */
 	{ "wan_pppoe_options_x", ""},	// oleg patch
 	{ "wan_pptp_options_x", "" },	// oleg patch
-
+#ifdef RTCONFIG_DSL
+	{ "wan_pppoe_auth", "" },
+#endif
 	/* Misc WAN parameters */
 
 	{ "wan_desc", ""},		/* WAN connection description */
@@ -919,6 +918,7 @@ struct nvram_tuple router_defaults[] = {
 #else
 	{ "wans_dualwan", "wan " DEF_SECOND_WANIF},
 #endif
+	{ "wans_standby", "0"},
 	{ "wans_lanport", "1"},
 	{ "wans_lb_ratio", "3:1" }, 	// only support two wan simultaneously
 	{ "wans_routing_enable", "0" },
@@ -958,6 +958,7 @@ struct nvram_tuple router_defaults[] = {
 #ifdef RTCONFIG_VDSL
 	{ "dslx_vdsl_bitswap", "1" },
 	{ "dslx_vdsl_vectoring", "0" },
+	{ "dslx_vdsl_nonstd_vectoring", "0" },
 	{ "dslx_vdsl_target_snrm", "32767" },
 	{ "dslx_vdsl_tx_gain_off", "32767" },
 	{ "dslx_vdsl_rx_agc", "65535" },
@@ -983,6 +984,7 @@ struct nvram_tuple router_defaults[] = {
 	{ "dslx_dns1", ""},
 	{ "dslx_dns2", ""},
 // now use switch_stb_x
+	{ "dslx_pppoe_auth", "" },
 	{ "dslx_pppoe_username", ""},
 	{ "dslx_pppoe_passwd", ""},
 	// this one is no longer to use
@@ -1193,6 +1195,7 @@ struct nvram_tuple router_defaults[] = {
 	{ "ddns_wildcard_x", "0"},
 	{ "ddns_regular_check", "0"},
 	{ "ddns_regular_period", "60"},
+	{ "ddns_transfer", ""},
 
 	// NVRAM for start_firewall
 	// Firewall
@@ -1481,6 +1484,8 @@ struct nvram_tuple router_defaults[] = {
 
 #if !defined(RTCONFIG_BCMARM) && !defined(RTCONFIG_QCA)
 	{ "apps_ipkg_old", "1" },
+#else
+	{ "apps_ipkg_old", "0" },
 #endif
 	{ "apps_ipkg_server", "" },
 	{ "apps_wget_timeout", "30" },
@@ -1562,7 +1567,6 @@ struct nvram_tuple router_defaults[] = {
 #else
 	{ "modem_autoapn", "0"}, // 0: disabled, 1: enabled, 2: don't change modem nvrams.
 #endif
-	{ "modem_autoapn_imsi", ""},
 	{ "modem_roaming", "0"}, // 0: disabled, 1: enabled.
 	{ "modem_roaming_mode", "1"}, // 0: automatically, 1: manually.
 	{ "modem_roaming_isp", ""}, // operator at the long format.
@@ -1662,7 +1666,6 @@ struct nvram_tuple router_defaults[] = {
 	{ "vpnc_clientlist", ""},
 	{ "vpnc_connect_row", ""},
 	{ "vpnc_auto_conn", ""},
-	{ "vpnc_appendix", ""},
 	{ "vpnc_pptp_options_x_list", ""},
 #endif
 
@@ -2054,6 +2057,22 @@ struct nvram_tuple router_defaults[] = {
 	{"tm_usb_path_serial", 		""},
 	{"tm_debug", 			"0"},
 #endif
+#if defined(RTCONFIG_TR069)
+	{ "tr_enable", "0"},
+	{ "tr_inform_enable", "1"},
+	{ "tr_inform_interval", "86400"},
+	{ "tr_acs_url", ""},
+	{ "tr_username", ""},
+	{ "tr_passwd", ""},
+	{ "tr_conn_username", "admin"},
+	{ "tr_conn_passwd", "admin"},
+	{ "tr_conn_port", "7547"},
+	{ "tr_ca_cert", ""},
+	{ "tr_client_cert", ""},
+	{ "tr_client_key", ""},
+	{ "tr_client_key", ""},
+	{ "pvgcode", "ASUS"},
+#endif
 	{ "Ate_fw_fail",		"10"},
 	{ "Ate_reboot_delay",		"1"},
 #ifdef RTCONFIG_USER_LOW_RSSI
@@ -2063,6 +2082,13 @@ struct nvram_tuple router_defaults[] = {
 	{ "custom_clientlist",		""},		/* for customize device name */
 	{ "nmp_client_list",		""},
 	{ "ttl_inc_enable",		"0"},		/* enable TTL increment */
+#ifdef RTCONFIG_TOR	
+	{ "Tor_enable",			"0"},		/* enable Tor Transparent Proxy	*/
+	{ "Tor_socksport",		"9050"},
+	{ "Tor_transport",		"9040"},
+	{ "Tor_dnsport",		"9053"},
+	{ "Tor_redir_list",		""},
+#endif
 #ifdef RTCONFIG_JFFS2USERICON
 	{ "custom_usericon",	""},
 	{ "custom_usericon_del",	""},

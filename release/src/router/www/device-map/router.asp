@@ -79,8 +79,6 @@ function initial(){
 			tab_reset(0);
 		}
 
-		change_tabclick();
-
 		// disallow to use the other band as a wireless AP
 		if(parent.sw_mode == 4 && !localAP_support){
 			for(var x=0; x<wl_info.wl_if_total;x++){
@@ -93,6 +91,7 @@ function initial(){
 		$("t0").style.display = "";	
 	}
 
+	change_tabclick();
 	if($("t1").className == "tabclick_NW" && 	parent.Rawifi_support)	//no exist Rawifi
 		$("wl_txbf_tr").style.display = "";		//Viz Add 2011.12 for RT-N56U Ralink 			
 
@@ -325,7 +324,8 @@ function show_LAN_info(v){
 			var modedesc = visible ? get_yadns_modedesc(i) + ": <#Full_Clients#> " + yadns_clients[i] : "";
 			showtext2($("yadns_mode" + i), modedesc, visible);
 		}
-		$("yadns_status").style.display = "";
+		if (!yadns_hideqis || yadns_enable != 0)
+			$("yadns_status").style.display = "";
 	}
 
 	showtext($("PINCode"), '<% nvram_get("secret_code"); %>');

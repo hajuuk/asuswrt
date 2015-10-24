@@ -21,6 +21,9 @@ var usb_wanstate = -1;
 var usb_wansbstate = -1;
 var usb_wanauxstate = -1;
 var wans_dualwan = '<% nvram_get("wans_dualwan"); %>'.split(" ");
+var modem_autoapn = '<% nvram_get("modem_autoapn"); %>';
+var usb_modem_auto_running = "";
+var usb_modem_auto_isp = "";
 
 function initial(){
 	if(parent.ISMOBILE){
@@ -101,38 +104,35 @@ function detect_if_sim_plug(flag){
 				redirect_page("wireless");
 			}
 			else if(sim_state == 1){
-				redirect_page("modem");
+				if(modem_autoapn == "1" && usb_modem_auto_running != " " && usb_modem_auto_running != "1")
+					setTimeout('detect_if_sim_plug();', 3000);
+				else if(modem_autoapn == "1" && usb_modem_auto_running == "1" && usb_modem_auto_isp != "")
+					setTimeout('detect_if_sim_plug();', 1000);
+			}
+			else if( sim_state == 2 || sim_state == 3){
+				redirect_page("detect");
 			}
 			else{
 				if(flag == null){
 					document.getElementById("loadingIcon").style.display = "none";
 					document.getElementById("skipButton").style.display = "";
 				}
-				setTimeout("update_sim_info(1);", 1000);
+				setTimeout('detect_if_sim_plug(1);', 1000);
 			}
 		}
 	});	
 }
 
 function update_sim_info(flag){
-	$.ajax({
-		url: '/result_of_get_changed_status_QIS.asp',
-		dataType: 'script',
-		error: function(xhr){
-			update_sim_info();		
-		},
-		success: function(response){
-			if(flag == null){
-				document.getElementById("skipButton").style.display = "none";
-				document.getElementById("loadingIcon").style.display = "";
-				changeiuiBackground(1);
-				setTimeout("detect_if_sim_plug();", 1000);
-			}
-			else{
-				setTimeout("detect_if_sim_plug(1);", 1000);
-			}
-		}
-	});	
+	if(flag == null){
+		document.getElementById("skipButton").style.display = "none";
+		document.getElementById("loadingIcon").style.display = "";
+		changeiuiBackground(1);
+		setTimeout("detect_if_sim_plug();", 5000);
+	}
+	else{
+		setTimeout("detect_if_sim_plug(1);", 1000);
+	}	
 }
 </script>
 </head>
@@ -173,7 +173,7 @@ function update_sim_info(flag){
 			<div id="fresharea">
 				<input type="button" id="detectAgain" class="button_gen_long" onclick="update_sim_info();" value="<#CTL_Detect_Again#>">
 				<img id="loadingIcon" style="display:none;" src="/images/InternetScan.gif">
-				<input type="button" id="skipButton" value="Skip" onclick="redirect_page('wireless');" class="button_gen">
+				<input type="button" id="skipButton" value="<#CTL_Skip#>" onclick="redirect_page('wireless');" class="button_gen">
 			</div>
 		</div>
 

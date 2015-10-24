@@ -78,7 +78,7 @@ OBJS += flash_mtd.o api-ralink.o
 ifeq ($(RTCONFIG_RALINK_RT3052),y)
 OBJS += ra3052.o
 endif
-ifeq ($(RTN14U)$(RTAC52U)$(RTAC51U)$(RTN11P)$(RTN54U)$(RTAC1200HP)$(RTN56UV2),y)
+ifeq ($(RTN14U)$(RTAC52U)$(RTAC51U)$(RTN11P)$(RTN54U)$(RTAC1200HP)$(RTN56UB1)$(RTAC54U),y)
 CFLAGS += -DRA_ESW
 OBJS += mt7620.o
 else
@@ -95,6 +95,10 @@ OBJS += wl.o wl_linux.o
 OBJS += broadcom.o api-broadcom.o
 ifeq ($(RTCONFIG_DSL_TCLINUX),y)
 OBJS += api-tclinux.o
+endif
+ifeq ($(RTCONFIG_RTL8365MB),y)
+CFLAGS += -I$(LINUXDIR)/drivers/char/rtl8365mb
+OBJS += rtl_8365mb.o
 endif
 endif
 

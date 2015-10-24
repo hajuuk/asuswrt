@@ -109,31 +109,22 @@ function detect_if_wan_plug(flag){
 					document.getElementById("loadingIcon").style.display = "none";
 					document.getElementById("skipButton").style.display = "";
 				}
-				setTimeout("update_wan_info(1);", 1000);
+				setTimeout("detect_if_wan_plug(1);", 1000);
 			}
 		}
 	});	
 }
 
 function update_wan_info(flag){
-	$.ajax({
-		url: '/result_of_get_changed_status_QIS.asp',
-		dataType: 'script',
-		error: function(xhr){
-			update_wan_info();		
-		},
-		success: function(response){
-			if(flag == null){
-				document.getElementById("skipButton").style.display = "none";
-				document.getElementById("loadingIcon").style.display = "";
-				changeiuiBackground(1);
-				setTimeout("detect_if_wan_plug();", 1000);
-			}
-			else{
-				setTimeout("detect_if_wan_plug(1);", 1000);
-			}
-		}
-	});	
+	if(flag == null){
+		document.getElementById("skipButton").style.display = "none";
+		document.getElementById("loadingIcon").style.display = "";
+		changeiuiBackground(1);
+		setTimeout("detect_if_wan_plug();", 1000);
+	}
+	else{
+		setTimeout("detect_if_wan_plug(1);", 1000);
+	}
 }
 
 </script>
@@ -176,7 +167,7 @@ function update_wan_info(flag){
 			<div id="fresharea">
 				<input type="button" id="detectAgain" class="button_gen_long" onclick="update_wan_info();" value="<#CTL_Detect_Again#>">
 				<img id="loadingIcon" style="display:none;" src="/images/InternetScan.gif">
-				<input type="button" id="skipButton" value="Skip" onclick="redirect_page('wireless');" class="button_gen">
+				<input type="button" id="skipButton" value="<#CTL_Skip#>" onclick="redirect_page('wireless');" class="button_gen">
 			</div>
 		</div>
 

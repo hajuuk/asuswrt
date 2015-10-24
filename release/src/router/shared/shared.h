@@ -228,9 +228,11 @@ enum {
 	MODEL_RTAC52U,
 	MODEL_RTAC51U,
 	MODEL_RTN54U,
-	MODEL_RTN56UV2,
+	MODEL_RTAC54U,
+	MODEL_RTN56UB1,
 	MODEL_RTAC1200HP,
 	MODEL_RTAC55U,
+	MODEL_RTAC55UHP,
 	MODEL_RT4GAC55U,
 	MODEL_RTN36U3,
 	MODEL_RTN56U,
@@ -258,6 +260,7 @@ enum {
 	MODEL_RTAC56U,
 	MODEL_RTAC53U,
 	MODEL_RTAC3200,
+	MODEL_RTAC88U,
 	MODEL_RTN14UHP,
 	MODEL_RTN10U,
 	MODEL_RTN10P,
@@ -425,9 +428,11 @@ static inline int have_usb3_led(int model)
 		case MODEL_RTAC68U:
 #ifndef RTCONFIG_ETRON_XHCI_USB3_LED
 		case MODEL_RTAC55U:
+		case MODEL_RTAC55UHP:
 #endif
 		case MODEL_DSLAC68U:
 		case MODEL_RTAC3200:
+		case MODEL_RTAC88U:
 			return 1;
 	}
 	return 0;
@@ -597,8 +602,11 @@ extern uint32_t set_gpio(uint32_t gpio, uint32_t value);
 extern uint32_t get_gpio(uint32_t gpio);
 extern int get_switch_model(void);
 extern uint32_t get_phy_speed(uint32_t portmask);
+#if defined(RTCONFIG_RALINK_MT7620)
 extern int get_mt7620_wan_unit_bytecount(int unit, unsigned long *tx, unsigned long *rx);
-
+#elif defined(RTCONFIG_RALINK_MT7621)
+extern int get_mt7621_wan_unit_bytecount(int unit, unsigned long *tx, unsigned long *rx);
+#endif
 /* sysdeps/ralink/ *.c */
 #if defined(RTCONFIG_RALINK)
 extern int rtkswitch_ioctl(int val, int val2);
@@ -619,7 +627,12 @@ extern int ralink_gpio_init(unsigned int idx, int dir);
 extern int config_rtkswitch(int argc, char *argv[]);
 extern int get_channel_list_via_driver(int unit, char *buffer, int len);
 extern int get_channel_list_via_country(int unit, const char *country_code, char *buffer, int len);
+#if defined(RTCONFIG_RALINK_MT7620)
 extern int __mt7620_wan_bytecount(int unit, unsigned long *tx, unsigned long *rx);
+#elif defined(RTCONFIG_RALINK_MT7620)
+extern int __mt7621_wan_bytecount(int unit, unsigned long *tx, unsigned long *rx);
+#endif
+
 #elif defined(RTCONFIG_QCA)
 extern char *wif_to_vif(char *wif);
 extern int config_rtkswitch(int argc, char *argv[]);
@@ -629,6 +642,8 @@ extern unsigned int rtkswitch_WanPort_phySpeed(void);
 extern void ATE_qca8337_port_status(void);
 #else
 #define wif_to_vif(wif) (wif)
+extern int config_rtkswitch(int argc, char *argv[]);
+extern unsigned int rtkswitch_lanPorts_phyStatus(void);
 #endif
 
 #if defined(RTCONFIG_QCA)
@@ -717,9 +732,15 @@ extern int psta_exist();
 extern int psta_exist_except(int unit);
 extern int psr_exist_except(int unit);
 extern unsigned int netdev_calc(char *ifname, char *ifname_desc, unsigned long *rx, unsigned long *tx, char *ifname_desc2, unsigned long *rx2, unsigned long *tx2);
+extern int check_bwdpi_nvram_setting();
+extern int get_iface_hwaddr(char *name, unsigned char *hwaddr);
 
 /* mt7620.c */
+#if defined(RTCONFIG_RALINK_MT7620)
 extern void ATE_mt7620_esw_port_status(void);
+#elif defined(RTCONFIG_RALINK_MT7621)
+extern void ATE_mt7621_esw_port_status(void);
+#endif
 
 /* notify_rc.c */
 extern int notify_rc(const char *event_name);
@@ -920,7 +941,7 @@ static inline int is_usb3_port(char *usb_node)
 	if (strstr(usb_node, get_usb_xhci_port(0)) || strstr(usb_node, get_usb_xhci_port(1)))
 		return 1;
 
-#if defined(RTAC55U)
+#if defined(RTAC55U) || defined(RTAC55UHP)
 	/* RT-AC55U equips external Etron XHCI host and enables QCA9557 internal EHCI host.
 	 * To make sure port1 maps to physical USB3 port and port2 maps to physical USB2 port respectively,
 	 * one of xhci usb bus is put to first item of ehci_ports whether USB2-only mode is enabled or not.

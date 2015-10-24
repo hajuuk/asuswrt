@@ -18,6 +18,7 @@
 #endif
 
 #ifdef DEBUG_RCTEST
+int test_mknode(int id);
 // used for various testing
 static int rctest_main(int argc, char *argv[])
 {
@@ -157,7 +158,7 @@ static int rctest_main(int argc, char *argv[])
 					system("echo 2 > /proc/sys/net/ipv4/conf/all/force_igmp_version");
 #endif
 
-#if defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UV2)
+#if defined(RTN14U) || defined(RTAC52U) || defined(RTAC51U) || defined(RTN11P) || defined(RTN54U) || defined(RTAC1200HP) || defined(RTN56UB1) || defined(RTAC54U)
 					if (!(!nvram_match("switch_wantag", "none")&&!nvram_match("switch_wantag", "")))
 #endif
 					{
@@ -323,7 +324,7 @@ static const applets_t applets[] = {
 	{ "halt",			reboothalt_main			},
 	{ "reboot",			reboothalt_main			},
 	{ "ntp", 			ntp_main			},
-#ifdef RTCONFIG_RALINK
+#if defined(RTCONFIG_RALINK) || defined(RTCONFIG_RTL8365MB)
 	{ "rtkswitch",			config_rtkswitch		},
 #elif defined(RTCONFIG_QCA)
 	{ "rtkswitch",			config_rtkswitch		},
@@ -362,6 +363,9 @@ static const applets_t applets[] = {
 #endif
 #ifdef RT4GAC55U
 	{ "lteled",			lteled_main			},
+#endif
+#ifdef RTCONFIG_TR069
+	{ "dhcpc_lease",		dhcpc_lease_main		},
 #endif
 	{NULL, NULL}
 };
@@ -477,6 +481,16 @@ int main(int argc, char **argv)
 
 		return asus_sd(argv[1], argv[2]);
 	}
+#ifdef RTCONFIG_BCMARM
+	else if(!strcmp(base, "asus_mmc")){
+		if(argc != 3){
+			printf("Usage: asus_mmc [device_name] [action]\n");
+			return 0;
+		}
+
+		return asus_mmc(argv[1], argv[2]);
+	}
+#endif	
 	else if(!strcmp(base, "asus_lp")){
 		if(argc != 3){
 			printf("Usage: asus_lp [device_name] [action]\n");
@@ -726,7 +740,7 @@ int main(int argc, char **argv)
 		return gen_stateless_conf();
 	}
 	else if (!strcmp(base, "restart_qtn")){
-		return reset_qtn(1);
+		return reset_qtn(0);
 	}
 #endif
 #endif
@@ -907,6 +921,12 @@ int main(int argc, char **argv)
 		return 0;
 	}
 #endif /* RTCONFIG_WIDEDHCP6 */
+#ifdef RTCONFIG_TOR
+	else if (!strcmp(base, "start_tor")) {
+                start_Tor_proxy();
+		return 0;
+        }
+#endif
 	printf("Unknown applet: %s\n", base);
 	return 0;
 }

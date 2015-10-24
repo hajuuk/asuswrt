@@ -552,24 +552,74 @@ void create_passwd(void)
 #endif
 }
 
+void get_dhcp_pool(char **dhcp_start, char **dhcp_end, char *buffer)
+{
+	if (dhcp_start == NULL || dhcp_end == NULL || buffer == NULL)
+		return;
+
+#ifdef RTCONFIG_WIRELESSREPEATER
+	if(nvram_get_int("sw_mode") == SW_MODE_REPEATER && nvram_get_int("wlc_state") != WLC_STATE_CONNECTED){
+		if(nvram_match("lan_proto", "static")) {
+			in_addr_t lan_ipaddr, lan_netmask;
+			char *p = buffer;
+			unsigned char lan1[4], lan2[4];
+			unsigned offset;
+
+			inet_aton(nvram_safe_get("lan_ipaddr") , (struct in_addr*) &lan_ipaddr);
+			inet_aton(nvram_safe_get("lan_netmask"), (struct in_addr*) &lan_netmask);
+//			cprintf("#### lan_ipaddr(%08x) lan_netmask(%08x)\n", lan_ipaddr, lan_netmask);
+
+			//start
+			if ((ntohl(lan_ipaddr & lan_netmask) | 1 ) == ntohl(lan_ipaddr))
+				offset = 2;
+			else
+				offset = 1;
+			*(in_addr_t *) &lan1 = (lan_ipaddr & lan_netmask) | htonl(offset);
+			*dhcp_start = p;
+			p += sprintf(p, "%u.%u.%u.%u", lan1[0], lan1[1], lan1[2], lan1[3]);
+			p += 1;
+
+			//end
+			if ((ntohl(lan_ipaddr & lan_netmask) | 254) == ntohl(lan_ipaddr))
+				offset = 253;
+			else
+				offset = 254;
+			*((in_addr_t *) &lan2) = (lan_ipaddr & lan_netmask) | htonl(offset);
+			*dhcp_end = p;
+			p += sprintf(p, "%u.%u.%u.%u", lan2[0], lan2[1], lan2[2], lan2[3]);
+			p += 1;
+
+//			cprintf("#### dhcp_start(%s) dhcp_end(%s)\n", *dhcp_start, *dhcp_end);
+		} else {
+			*dhcp_start = nvram_default_get("dhcp_start");
+			*dhcp_end = nvram_default_get("dhcp_end");
+		}
+	}
+	else
+#endif
+	{
+		*dhcp_start = nvram_safe_get("dhcp_start");
+		*dhcp_end = nvram_safe_get("dhcp_end");
+	}
+}
+
+#if 0
 int get_dhcpd_lmax()
 {
 	unsigned int lstart, lend, lip;
 	int dhlease_size, invalid_ipnum, except_lanip;
 	char *dhcp_start, *dhcp_end, *lan_netmask, *lan_ipaddr;
+	char buffer[64];
 
+	get_dhcp_pool(&dhcp_start, &dhcp_end, buffer);
 #ifdef RTCONFIG_WIRELESSREPEATER
 	if(nvram_get_int("sw_mode") == SW_MODE_REPEATER && nvram_get_int("wlc_state") != WLC_STATE_CONNECTED){
-		dhcp_start = nvram_default_get("dhcp_start");
-		dhcp_end = nvram_default_get("dhcp_end");
 		lan_netmask = nvram_default_get("lan_netmask");
 		lan_ipaddr = nvram_default_get("lan_ipaddr");
 	}
 	else
 #endif
 	{
-		dhcp_start = nvram_safe_get("dhcp_start");
-		dhcp_end = nvram_safe_get("dhcp_end");
 		lan_netmask = nvram_safe_get("lan_netmask");
 		lan_ipaddr = nvram_safe_get("lan_ipaddr");
 	}
@@ -585,6 +635,7 @@ int get_dhcpd_lmax()
 
 	return dhlease_size;
 }
+#endif
 
 void start_dnsmasq(void)
 {
@@ -606,7 +657,7 @@ void start_dnsmasq(void)
 
 	lan_ifname = nvram_safe_get("lan_ifname");
 #ifdef RTCONFIG_WIRELESSREPEATER
-	if (nvram_get_int("sw_mode") == SW_MODE_REPEATER && nvram_get_int("wlc_state") != WLC_STATE_CONNECTED) {
+	if (nvram_get_int("sw_mode") == SW_MODE_REPEATER && nvram_get_int("wlc_state") != WLC_STATE_CONNECTED && !nvram_match("lan_proto", "static")) {
 		lan_ipaddr = nvram_default_get("lan_ipaddr");
 	} else
 #endif
@@ -710,20 +761,18 @@ void start_dnsmasq(void)
 	) {
 		char *dhcp_start, *dhcp_end;
 		int dhcp_lease;
+		char buffer[64];
 
 		have_dhcp |= 1; /* DHCPv4 */
 
+		get_dhcp_pool(&dhcp_start, &dhcp_end, buffer);
 #ifdef RTCONFIG_WIRELESSREPEATER
 		if(nvram_get_int("sw_mode") == SW_MODE_REPEATER && nvram_get_int("wlc_state") != WLC_STATE_CONNECTED){
-			dhcp_start = nvram_default_get("dhcp_start");
-			dhcp_end = nvram_default_get("dhcp_end");
 			dhcp_lease = atoi(nvram_default_get("dhcp_lease"));
 		}
 		else
 #endif
 		{
-			dhcp_start = nvram_safe_get("dhcp_start");
-			dhcp_end = nvram_safe_get("dhcp_end");
 			dhcp_lease = nvram_get_int("dhcp_lease");
 		}
 
@@ -774,6 +823,33 @@ void start_dnsmasq(void)
 			fprintf(fp, "dhcp-option=lan,44,0.0.0.0\n"
 			/*	    "dhcp-option=lan,46,8\n"*/);
 		}
+#endif
+#if (defined(RTCONFIG_TR069) && !defined(RTCONFIG_TR181))
+		unsigned char hwaddr[6];
+		char buf[13];
+
+#ifdef RTAC87U
+		ether_atoe(nvram_safe_get("et1macaddr"), hwaddr);
+#else
+		ether_atoe(nvram_safe_get("et0macaddr"), hwaddr);
+#endif
+		snprintf(buf, sizeof(buf), "%02X%02X%02X",
+			 hwaddr[0], hwaddr[1], hwaddr[2]);
+
+		fprintf(fp, "dhcp-option=cpewan-id,vi-encap:3561,4,\"%s\"\n", buf);
+
+#ifdef RTAC87U
+		ether_atoe(nvram_safe_get("et1macaddr"), hwaddr);
+#else
+		ether_atoe(nvram_safe_get("et0macaddr"), hwaddr);
+#endif
+		snprintf(buf, sizeof(buf), "%02X%02X%02X%02X%02X%02X",
+			 hwaddr[0], hwaddr[1], hwaddr[2],
+			 hwaddr[3], hwaddr[4], hwaddr[5]);
+
+		fprintf(fp, "dhcp-option=cpewan-id,vi-encap:3561,5,\"%s\"\n", buf);
+		//fprintf(fp, "dhcp-option=cpewan-id,vi-encap:3561,6,\"Wireless Router\"\n");
+		fprintf(fp, "dhcp-option=cpewan-id,vi-encap:3561,6,\"%s\"\n", nvram_safe_get("productid"));
 #endif
 		/* Shut up WPAD info requests */
 		fprintf(fp, "dhcp-option=lan,252,\"\\n\"\n");
@@ -868,9 +944,11 @@ void start_dnsmasq(void)
 #endif
 
 	if (have_dhcp) {
+#if 0	//this would limit the total count of dhcp client (including dhcp pool and manually assigned static IP).
 		/* Maximum leases */
 		if ((i = get_dhcpd_lmax()) > 0)
 			fprintf(fp, "dhcp-lease-max=%d\n", i);
+#endif
 
 		/* Faster for moving clients, if authoritative */
 		if (nvram_get_int("dhcpd_auth") >= 0)
@@ -897,7 +975,11 @@ void start_dnsmasq(void)
 	/* Create resolv.dnsmasq with empty server list */
 	f_write(dmservers, NULL, 0, FW_APPEND, 0666);
 
+#if (defined(RTCONFIG_TR069) && !defined(RTCONFIG_TR181))
+	eval("dnsmasq", "--log-async", "-6", "/sbin/dhcpc_lease");
+#else
 	eval("dnsmasq", "--log-async");
+#endif
 
 /* TODO: remove it for here !!!*/
 	char nvram_name[16], wan_proto[16];
@@ -2739,7 +2821,7 @@ void start_upnp(void)
 	int i;
 
 	if (getpid() != 1) {
-		notify_rc("start_upnp");
+		notify_rc_and_period_wait("start_upnp", 25);
 		return;
 	}
 
@@ -2857,7 +2939,7 @@ void start_upnp(void)
 void stop_upnp(void)
 {
 	if (getpid() != 1) {
-		notify_rc("stop_upnp");
+		notify_rc_and_period_wait("stop_upnp", 25);
 		return;
 	}
 
@@ -3355,10 +3437,6 @@ start_services(void)
 #endif
 	start_upnp();
 
-#if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
-	start_pptpd();
-#endif
-
 #ifdef RTCONFIG_USB
 //	_dprintf("restart_nas_services(%d): test 8.\n", getpid());
 	//restart_nas_services(0, 1);
@@ -3411,7 +3489,12 @@ start_services(void)
 #ifdef RTCONFIG_PARENTALCTRL
 	start_pc_block();
 #endif
+
+#ifdef RTCONFIG_TOR
+	start_Tor_proxy();
+#endif	
 	return 0;
+
 }
 
 void
@@ -3542,19 +3625,39 @@ stop_services(void)
 #ifdef RTCONFIG_PARENTALCTRL
 	stop_pc_block();
 #endif
+
+#ifdef RTCONFIG_TOR
+        stop_Tor_proxy(); 
+#endif
+
 }
 
 #ifdef RTCONFIG_QCA
 int stop_wifi_service(void)
 {
    	int is_unload;
-	kill_pidfile_tk("/var/run/hostapd_2g.pid");
-	kill_pidfile_tk("/var/run/hostapd_5g.pid");
-	kill_pidfile_tk("/var/run/hostapd_2g_others.pid");
-	kill_pidfile_tk("/var/run/hostapd_5g_others.pid");
-	doSystem("ifconfig wifi0 down");
-	doSystem("ifconfig wifi1 down");
+	int i, unit = -1, sunit = 0;
+	unsigned int m;	/* bit0~3: 2G, bit4~7: 5G */
+	char wif[256];
+	char pid_path[] = "/var/run/hostapd_athXXX.pidYYYYYY";
+	char path[] = "/sys/class/net/ath001XXXXXX";
 	
+	for (i = 0, unit = 0, sunit = 0, m = 0xFF; m > 0; ++i, ++sunit, m >>= 1) {
+		if (i == 4) {
+			unit = 1;
+			sunit -= 4;
+		}
+		__get_wlifname(unit, sunit, wif);
+		sprintf(path, "/sys/class/net/%s", wif);
+		if (d_exists(path))
+			eval("ifconfig", wif, "down");
+		sprintf(pid_path, "/var/run/hostapd_%s.pid", wif);
+		if (!f_exists(pid_path))
+			continue;
+
+		kill_pidfile_tk(pid_path);
+	}
+
 #if defined(QCA_WIFI_INS_RM) 	
 	if(nvram_get_int("sw_mode")==2)
 		is_unload=0;
@@ -3565,9 +3668,10 @@ int stop_wifi_service(void)
 #endif	
 	if(is_unload)
 	{   
-		if (module_loaded("umac"))
+		if (module_loaded("umac")) {
 			modprobe_r("umac");
-		sleep(2);
+			sleep(2);
+		}
 		if (module_loaded("ath_dev"))
 			modprobe_r("ath_dev");
 
@@ -3977,7 +4081,7 @@ again:
 				modprobe_r("wl");
 			}
 
-#if !defined(RTN53)
+#if !defined(RTN53) && !defined(RTN56UB1)
 			stop_usb();
 			stop_usbled();
 			remove_storage_main(1);
@@ -3990,7 +4094,12 @@ again:
 #ifdef RTCONFIG_IPV6
 			stop_dhcp6c();
 #endif
+
+#ifdef RTCONFIG_TR069
+			stop_tr();
+#endif
 			stop_jffs2(1);
+			stop_networkmap();
 			// TODO free necessary memory here
 		}
 		if(action & RC_SERVICE_START) {
@@ -4158,6 +4267,7 @@ again:
 			stop_wan();
 			stop_lan();
 			stop_vlan();
+
 
 			// TODO free memory here
 		}
@@ -4333,7 +4443,7 @@ again:
 			stop_8021x();
 #endif
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
-			stop_pptpd();
+			//stop_pptpd();
 #endif
 			stop_wan();
 			stop_lan();
@@ -4361,7 +4471,7 @@ again:
 			start_8021x();
 #endif
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
-			start_pptpd();
+			//start_pptpd();
 #endif
 			start_wps();
 #ifdef RTCONFIG_BCMWL6
@@ -4486,7 +4596,8 @@ check_ddr_done:
 		(get_model() == MODEL_RTN12HP_B1) ||
 		(get_model() == MODEL_APN12HP) ||
 		(get_model() == MODEL_RTN66U) ||
-		(get_model() == MODEL_RTN18U))
+		(get_model() == MODEL_RTN18U) ||
+		(get_model() == MODEL_RTAC88U))
 			set_wltxpower();
 		else
 			dbG("\n\tDon't do this!\n\n");
@@ -5075,7 +5186,7 @@ check_ddr_done:
 #ifdef RTCONFIG_PARENTALCTRL
 			start_pc_block();
 #endif
-
+	
 			// TODO handle multiple wan
 			//start_firewall(get_wan_ifname(0, wan_ifname), nvram_safe_get("wan0_ipaddr"), "br0", nvram_safe_get("lan_ipaddr"));
 			start_firewall(wan_primary_ifunit(), 0);
@@ -5418,6 +5529,12 @@ check_ddr_done:
 		}
 	}
 #endif
+#ifdef RTCONFIG_TR069
+	else if (strncmp(script, "tr", 2) == 0) {
+		if (action & RC_SERVICE_STOP) stop_tr();
+		if (action & RC_SERVICE_START) start_tr();
+	}
+#endif
 	else if (strcmp(script, "sh") == 0) {
 		_dprintf("%s: shell: %s\n", __FUNCTION__, cmd[1]);
 		if(cmd[1]) system(cmd[1]);
@@ -5519,6 +5636,14 @@ _dprintf("test 2. turn off the USB power during %d seconds.\n", reset_seconds[re
 		}
 	}
 #endif
+#endif
+#ifdef RTCONFIG_TOR
+        else if (strcmp(script, "tor") == 0)
+        {
+                if(action & RC_SERVICE_STOP) stop_Tor_proxy();
+                if(action & RC_SERVICE_START) start_Tor_proxy();
+		start_firewall(wan_primary_ifunit(), 0);
+        }
 #endif
 	else
 	{
@@ -5808,6 +5933,8 @@ int
 start_acsd()
 {
 	int ret = 0;
+
+	if(nvram_match("nowl", "1")) return 0;
 
 #ifdef RTCONFIG_PROXYSTA
 	if (psta_exist())
@@ -6230,6 +6357,67 @@ void start_pc_block(void)
 
 	if(nvram_get_int("MULTIFILTER_ALL") !=0 && count_pc_rules() > 0)
 		_eval(pc_block_argv, NULL, 0, &pid);
+}
+#endif
+
+#ifdef RTCONFIG_TOR
+void stop_Tor_proxy(void)
+{
+	if (pids("Tor"))
+		killall("Tor", SIGTERM);
+	sleep(1);
+	remove("/tmp/torlog");
+}
+
+void start_Tor_proxy(void)
+{
+	FILE *fp;
+        pid_t pid;
+        char *Tor_argv[] = { "Tor",
+                "-f", "/tmp/torrc", "--quiet", NULL};
+	char *Socksport;
+	char *Transport;
+	char *Dnsport;
+	struct stat mdstat_jffs, mdstat_tmp;
+	int mdesc_stat_jffs, mdesc_stat_tmp;
+ 	
+	stop_Tor_proxy();
+
+	if(!nvram_get_int("Tor_enable"))
+		return;
+	
+	if ((fp = fopen("/tmp/torrc", "w")) == NULL)
+                return;
+
+#if (defined(RTCONFIG_JFFS2)||defined(RTCONFIG_BRCM_NAND_JFFS2))
+	mdesc_stat_tmp = stat("/tmp/.tordb/cached-microdesc-consensus", &mdstat_tmp);
+	if(mdesc_stat_tmp == -1){	
+		mdesc_stat_jffs = stat("/jffs/.tordb/cached-microdesc-consensus", &mdstat_jffs);
+		if(mdesc_stat_jffs != -1){
+			_dprintf("Tor: restore microdescriptor directory\n");
+			eval("cp", "-rf", "/jffs/.tordb", "/tmp/.tordb");
+			sleep(1);
+		}
+	}
+#endif
+	if ((Socksport = nvram_get("Tor_socksport")) == NULL)	Socksport = "9050";
+	if ((Transport = nvram_get("Tor_transport")) == NULL)   Transport = "9040";
+	if ((Dnsport = nvram_get("Tor_dnsport")) == NULL)   	Dnsport = "9053";
+	
+	fprintf(fp, "SocksPort %s\n", Socksport);
+	fprintf(fp, "Log notice file /tmp/torlog\n");
+	fprintf(fp, "VirtualAddrNetwork 10.192.0.0/10\n");
+	fprintf(fp, "AutomapHostsOnResolve 1\n");
+	fprintf(fp, "TransPort %s\n", Transport);
+	fprintf(fp, "TransListenAddress 192.168.1.1\n");
+	fprintf(fp, "DNSPort %s\n", Dnsport);
+	fprintf(fp, "DNSListenAddress 192.168.1.1\n");
+	fprintf(fp, "RunAsDaemon 1\n");
+	fprintf(fp, "DataDirectory /tmp/.tordb\n");
+	fprintf(fp, "AvoidDiskWrites 1\n");
+	fclose(fp);
+	
+	_eval(Tor_argv, NULL, 0, &pid);
 }
 #endif
 

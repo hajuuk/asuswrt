@@ -168,6 +168,7 @@ function add_pvc() {
 		document.form.dslx_gateway.value="0.0.0.0";
 		document.form.dslx_pppoe_username.value="";
 		document.form.dslx_pppoe_passwd.value="";
+		document.form.dslx_pppoe_auth.value="";
 		document.form.dslx_pppoe_idletime.value="0";
 		document.form.dslx_pppoe_mtu.value="1492";
 		document.form.dslx_pppoe_service.value="";
@@ -699,6 +700,7 @@ function change_dsl_type(dsl_type){
 
 		inputCtrl(document.form.dslx_pppoe_username, 1);
 		inputCtrl(document.form.dslx_pppoe_passwd, 1);
+		inputCtrl(document.form.dslx_pppoe_auth, 1);
 		inputCtrl(document.form.dslx_pppoe_idletime, 1);
 		inputCtrl(document.form.dslx_pppoe_mtu, 1);
 //		inputCtrl(document.form.dslx_pppoe_mru, 1);
@@ -716,6 +718,7 @@ function change_dsl_type(dsl_type){
 
 		inputCtrl(document.form.dslx_pppoe_username, 0);
 		inputCtrl(document.form.dslx_pppoe_passwd, 0);
+		inputCtrl(document.form.dslx_pppoe_auth, 0);
 		inputCtrl(document.form.dslx_pppoe_idletime, 0);
 		inputCtrl(document.form.dslx_pppoe_mtu, 0);
 //		inputCtrl(document.form.dslx_pppoe_mru, 0);
@@ -732,6 +735,7 @@ function change_dsl_type(dsl_type){
 
 		inputCtrl(document.form.dslx_pppoe_username, 0);
 		inputCtrl(document.form.dslx_pppoe_passwd, 0);
+		inputCtrl(document.form.dslx_pppoe_auth, 0);
 		inputCtrl(document.form.dslx_pppoe_idletime, 0);
 		inputCtrl(document.form.dslx_pppoe_mtu, 0);
 //		inputCtrl(document.form.dslx_pppoe_mru, 0);
@@ -748,6 +752,7 @@ function change_dsl_type(dsl_type){
 		inputCtrl(document.form.dslx_dnsenable[1], 0);
 		inputCtrl(document.form.dslx_pppoe_username, 0);
 		inputCtrl(document.form.dslx_pppoe_passwd, 0);
+		inputCtrl(document.form.dslx_pppoe_auth, 0);
 		inputCtrl(document.form.dslx_pppoe_idletime, 0);
 		inputCtrl(document.form.dslx_pppoe_mtu, 0);
 //		inputCtrl(document.form.dslx_pppoe_mru, 0);
@@ -1334,6 +1339,16 @@ function pass_checked(obj){
 											<td>
 												<div style="margin-top:2px;"><input type="password" maxlength="64" class="input_32_table" id="dslx_pppoe_passwd" name="dslx_pppoe_passwd" value="<% nvram_get("dslx_pppoe_passwd"); %>" autocapitalization="off" autocomplete="off"></div>
 												<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.form.dslx_pppoe_passwd);"><#QIS_show_pass#></div>
+											</td>
+										</tr>
+										<tr>
+											<th><#WAN_PPP_AuthText#></th>
+											<td align="left">
+												<select id="" class="input_option" name="dslx_pppoe_auth">
+													<option value="" <% nvram_match("dslx_pppoe_auth", "", "selected"); %>>AUTO</option>
+													<option value="pap" <% nvram_match("dslx_pppoe_auth", "pap", "selected"); %>>PAP</option>
+													<option value="chap" <% nvram_match("dslx_pppoe_auth", "chap", "selected"); %>>CHAP</option>
+												</select>
 											</td>
 										</tr>
 										<tr>

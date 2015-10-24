@@ -1,0 +1,11 @@
+
+SKU_2G_FCC  = 
+SKU_5G_FCC  = 
+SKU_2G_CE   = "20141231_CE_temporary_2GHz_SingleSKU.dat"
+SKU_5G_CE   = "20141231_CE_temporary_5GHz_SingleSKU.dat"
+SKU_2G_SG   = 
+SKU_5G_SG   = 
+SKU_2G_AU   = 
+SKU_5G_AU   = 
+SKU_2G_NCC  = 
+SKU_5G_NCC  = 

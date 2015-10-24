@@ -33,6 +33,7 @@ var wans_dualwan = '<% nvram_get("wans_dualwan"); %>'.split(" ");
 function initial(){
 	var eth_wan = 0;
 	var sim_wan = 0;
+	var hint_str;
 
 	if(parent.ISMOBILE){
 		parent.set_step("internet_type");
@@ -56,26 +57,28 @@ function initial(){
 
 	if(ewan_index != -1){
 		if(wan_wanstate  == 2 && wan_wansbstate == 0 && wan_wanauxstate == 0){
-			document.getElementById("success_e").style.display = "";
-			document.getElementById("ewan_success").style.display = "";		
+			document.getElementById("success_img").style.display = "";
+			document.getElementById("success_desc").innerHTML = "<#QIS_dualconnect_desc1#>";
+			document.getElementById("success_desc").style.display = "";
+			hint_str = "<style style=\"text/css\"> a{text-decoration:none;font-weight: bold; font-style: italic; cursor: pointer;} a:hover{text-decoration:underline;}</style>";
+			hint_str += "Note: If you want to connect to the internet service via \"3G/4G network\", click <a onclick=\"redirect_page('unplug_sim');\">\"Configure Another WAN\"</a>.";
+			hint_str += " The following process will guide you to complete the setting of the 3G/4G internet.";
+			document.getElementById("dualwan_hint").innerHTML = hint_str;
 			eth_wan = 1;
 		}
-		/*else{
-			document.getElementById("fail_e").style.display = "";
-			document.getElementById("ewan_fail").style.display = "";	
-		}*/	
 	}
 
 	if(usb_index != -1){
 		if(usb_wanstate == 2 && usb_wansbstate == 0 && usb_wanauxstate == 0){
-			document.getElementById("success_s").style.display = "";
-			document.getElementById("sim_success").style.display = "";	
+			document.getElementById("success_img").style.display = "";
+			document.getElementById("success_desc").innerHTML = "<#QIS_dualconnect_desc3#>";
+			document.getElementById("success_desc").style.display = "";
+			hint_str = "<style style=\"text/css\"> a{text-decoration:none;font-weight: bold; font-style: italic; cursor: pointer;} a:hover{text-decoration:underline;}</style>";
+			hint_str += "Note: If you want to connect to the internet service via \"Ethernet WAN\", click <a onclick=\"redirect_page('unplug_ewan');\">\"Configure Another WAN\"</a>.";
+			hint_str += " The following process will guide you to complete the setting of the Ethernet WAN.";
+			document.getElementById("dualwan_hint").innerHTML = hint_str;
 			sim_wan = 1;	
-		}
-		/*else{
-			document.getElementById("fail_s").style.display = "";
-			document.getElementById("sim_fail").style.display = "";	
-		}*/		
+		}		
 	}
 }
 
@@ -144,8 +147,11 @@ function detect_if_wan_plug(flag){
 				redirect_pate("internet_type");
 			}
 			else if(usb_wanstate != 2){
-				if( sim_state == 1 ){
-					redirect_page("modem");
+				if( sim_state == 1 && (usb_wanstate == 1 || usb_wanstate == 4)){
+					update_wan_info(1);
+				}
+				else if( sim_state == 2 || sim_state == 3){
+					redirect_page("detect");
 				}
 				else{
 					redirect_page("unplug_sim");
@@ -154,7 +160,6 @@ function detect_if_wan_plug(flag){
 			else if(flag == null){
 				document.getElementById("loadingIcon").style.display = "none";
 				document.getElementById("next").style.display = "";
-				//changeiuiBackground(0);
 			}
 		}
 	});	
@@ -171,7 +176,6 @@ function update_wan_info(flag){
 			if(flag == null){
 				document.getElementById("next").style.display = "none";
 				document.getElementById("loadingIcon").style.display = "";
-				//changeiuiBackground(1);
 				setTimeout("detect_if_wan_plug();", 1000);
 			}
 			else{
@@ -202,30 +206,24 @@ function update_wan_info(flag){
 		<table id="tblsetting_1" class="QISform" width="auto" border=0 align="center" cellpadding="5" cellspacing="0">
 		  <tr>
 			<td align="right">
-				<img id="success_e" style="display:none;" src="/images/checked_qis.png">
-				<img id="fail_e" style="display:none;" src="/images/error.png">
+				<img id="success_img" style="display:none;" src="/images/checked_qis.png">
 			</td>	  
 			<td class="test_css">
-				<strong><span id="ewan_success" style="display:none;"><#QIS_dualconnect_desc1#></span></strong>
-				<strong><span id="ewan_fail" style="display:none;"><#QIS_dualconnect_desc2#></span></strong>
+				<strong><span id="success_desc" style="display:none;"></span></strong>
 			</td>
 		  </tr>
-		  <tr>
-			<td align="right">
-				<img id="success_s" style="display:none;" src="/images/checked_qis.png">
-				<img id="fail_s" style="display:none;" src="/images/error.png">
-			</td>	  
-			<td class="test_css">
-				<strong><span id="sim_success" style="display:none;"><#QIS_dualconnect_desc3#></span></strong>
-				<strong><span id="sim_fail" style="display:none;"><#QIS_dualconnect_desc4#></span></strong>			
-			</td>
+		  <tr id="dualwan_hint_tr">
+		  	<td></td>
+		  	<td class="QISGeneralFont">
+		  		<div id="dualwan_hint"></div>
+		  	</td>
 		  </tr>
 		</table>
 		<br/>
 
 		<div class='apply_gen'>
 			<div id="fresharea">
-				<input type="button" id="detectAgain" class="button_gen_long" onclick="update_wan_info();" value="<#CTL_Detect_Again#>">
+				<!--input type="button" id="detectAgain" class="button_gen_long" onclick="update_wan_info();" value="<#CTL_Detect_Again#>"-->
 				<input type="button" id="next" value="<#btn_next#>" onclick="redirect_page('wireless');" class="button_gen">
 				<img id="loadingIcon" style="display:none;" src="/images/InternetScan.gif">
 			</div>

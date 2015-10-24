@@ -51,12 +51,16 @@ var puk_remaining_count = '<% nvram_get("usb_modem_act_auth_puk"); %>';
 function QKDetect_load_body(){
 	parent.set_step("t1");
 	parent.document.title = "<#Web_Title#> - <#QKSet_detect_sanglass#>";
-	setTimeout('getWANStatus();', 3000);
+	setTimeout('getWANStatus();', 5000);
 
 	if(parent.ISMOBILE){
 		hideObjs();
 		document.getElementById("tblsetting_1").style.marginTop = "-30px";
 		parent.set_step("");
+	}
+
+	if(pin_remaining_count == ""){
+		getSimAuth();
 	}
 }
 
@@ -127,7 +131,10 @@ function getWANStatus(){
 			}
 			else if(autodet_state == "5" && autodet_auxstate != "4"){
 				redirect_page("internet_type");
-			}			
+			}
+			else if(wanstate == 4 && wansbstate == 4){
+				parent.location.href = "/error_page.htm?flag=6";
+			}
 			else if(wanstate  == 2 && wansbstate == 0 && wanauxstate == 0){
 				if(based_modelid == "4G-AC55U")
 				{
@@ -137,12 +144,12 @@ function getWANStatus(){
 					}	
 					else if(wan_wanstate == 2 && wan_wansbstate == 0 && wan_wanauxstate == 0){
 						if(sim_state == 1){
-							if(modem_autoapn == "1" && usb_modem_auto_running != "" && usb_modem_auto_running != "1")
-								setTimeout('getWANStatus();', 5000);
+							if(modem_autoapn == "1" && usb_modem_auto_running != " " && usb_modem_auto_running != "1")
+								setTimeout('getWANStatus();', 3000);
 							else if(modem_autoapn == "1" && usb_modem_auto_running == "1" && usb_modem_auto_isp != "")
 								setTimeout('getWANStatus();', 1000);							
-							else	
-								redirect_page("modem");	
+							else
+								redirect_page("modem");
 						}
 						else if(sim_state == 2){
 							document.getElementById("sim_desc").innerHTML = "<strong>Please Input SIM PIN!</strong>";
@@ -344,6 +351,12 @@ function unblock_pin(){
 		setTimeout("getWANStatus();", 5000);	
 	}
 }
+
+function getSimAuth(){
+		document.simact_form.action_mode.value = "restart_simauth";
+		document.simact_form.submit();
+}
+
 </script>
 </head>
 

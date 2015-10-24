@@ -24,11 +24,7 @@
 <script type="text/javascript" src="/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script>
-var $j = jQuery.noConflict();
-wan_route_x = '<% nvram_get("wan_route_x"); %>';
-wan_nat_x = '<% nvram_get("wan_nat_x"); %>';
-wan_proto = '<% nvram_get("wan_proto"); %>';
-<% wl_get_parameter(); %>
+var $j = jQuery.noConflict();<% wl_get_parameter(); %>
 
 wl_channel_list_2g = <% channel_list_2g(); %>;
 wl_channel_list_5g = <% channel_list_5g(); %>;
@@ -118,7 +114,7 @@ function initial(){
 				
 	change_wl_nmode(document.form.wl_nmode_x);
 	if(country == "EU"){		//display checkbox of DFS channel under 5GHz
-		if(based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "DSL-AC68U" || based_modelid == "RT-AC69U" || based_modelid == "TM-AC1900"
+		if(based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "DSL-AC68U" || based_modelid == "RT-AC69U"
 		|| based_modelid == "RT-AC87U"
 		|| based_modelid == "RT-AC3200"
 		|| (based_modelid == "RT-AC66U" && wl1_dfs == "1")		//0: A2 not support, 1: B0 support
@@ -130,7 +126,7 @@ function initial(){
 		}
 	}
 	else if(country == "US" || country == "SG"){		//display checkbox of band1 channel under 5GHz
-		if(based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "RT-AC69U" || based_modelid == "TM-AC1900" || based_modelid == "DSL-AC68U"
+		if(based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "RT-AC69U" || based_modelid == "DSL-AC68U"
 		|| based_modelid == "RT-AC56U" || based_modelid == "RT-AC56S"
 		|| based_modelid == "RT-N18U"
 		|| based_modelid == "RT-AC66U"
@@ -294,43 +290,48 @@ function applyRule(){
 		document.form.wl_wpa_psk.value = "";
 
 	if(validForm()){
-                if(document.form.wl_closed[0].checked && document.form.wps_enable.value == 1){ 
-                        if(!confirm("Selecting Hide SSID will disable WPS. Are you sure?")){
-                                return false;           
-                        }
+        if(document.form.wl_closed[0].checked && document.form.wps_enable.value == 1){ 
+            if(!confirm("Selecting Hide SSID will disable WPS. Are you sure?")){
+                return false;           
+            }
  
-                        document.form.wps_enable.value = "0";
-                }
+             document.form.wps_enable.value = "0";
+        }
 	
-                if(document.form.wps_enable.value == 1){
-                         if(document.form.wps_dualband.value == "1" || document.form.wl_unit.value == document.form.wps_band.value){         //9: RT-AC87U dual band WPS
-                                if(document.form.wl_auth_mode_x.value == "open" && document.form.wl_wep_x.value == "0"){
-                                        if(!confirm("Are you sure to configure WPS in Open System (no security) ?")){
-                                                return false;           
-                                        }
-                                }
-                
-                                if( document.form.wl_auth_mode_x.value == "shared"
-                                 ||     document.form.wl_auth_mode_x.value == "psk" || document.form.wl_auth_mode_x.value == "wpa"
-                                 || document.form.wl_auth_mode_x.value == "open" && (document.form.wl_wep_x.value == "1" || document.form.wl_wep_x.value == "2")){              //open wep case
-                                        if(!confirm("Selecting WEP or TKIP Encryption will disable the WPS. Are you sure ?")){
-                                                return false;   
-                                        }
-                                        document.form.wps_enable.value = "0";   
-                                }       
-                        }
+        if(document.form.wps_enable.value == 1){
+            if(document.form.wps_dualband.value == "1" || document.form.wl_unit.value == document.form.wps_band.value){         //9: RT-AC87U dual band WPS
+                if(document.form.wl_auth_mode_x.value == "open" && document.form.wl_wep_x.value == "0"){
+					if(!confirm("Are you sure to configure WPS in Open System (no security) ?"))
+						return false;           
                 }
+                
+                if( document.form.wl_auth_mode_x.value == "shared"
+                 || document.form.wl_auth_mode_x.value == "psk" || document.form.wl_auth_mode_x.value == "wpa"
+                 || document.form.wl_auth_mode_x.value == "open" && (document.form.wl_wep_x.value == "1" || document.form.wl_wep_x.value == "2")){              //open wep case
+                    if(!confirm("Selecting WEP or TKIP Encryption will disable the WPS. Are you sure ?"))
+                        return false;   
+					
+                    document.form.wps_enable.value = "0";   
+                }       
+            }
+			else{
+				if(document.form.wl_auth_mode_x.value == "open" && document.form.wl_wep_x.value == "0"){
+					if(!confirm("Are you sure to configure WPS in Open System (no security) ?"))
+						return false;		
+				}
+			}
+		}
 
 		showLoading();
 		if(based_modelid == "RT-AC87U" && "<% nvram_get("wl_unit"); %>" == "1")
 			stopFlag = '0';
 			
-		document.form.wps_config_state.value = "1";
-		
-		if((auth_mode == "shared" || auth_mode == "wpa" || auth_mode == "wpa2"  || auth_mode == "wpawpa2" || auth_mode == "radius" ||
-		  ((auth_mode == "open") && !(document.form.wl_wep_x.value == "0")))
-		 && document.form.wps_mode.value == "enabled")
+		document.form.wps_config_state.value = "1";		
+		if((auth_mode == "shared" || auth_mode == "wpa" || auth_mode == "wpa2"  || auth_mode == "wpawpa2" || auth_mode == "radius" 
+		||((auth_mode == "open") && !(document.form.wl_wep_x.value == "0")))
+		 && document.form.wps_mode.value == "enabled"){
 			document.form.wps_mode.value = "disabled";
+		}	
 		
 		if(auth_mode == "wpa" || auth_mode == "wpa2" || auth_mode == "wpawpa2" || auth_mode == "radius")
 			document.form.next_page.value = "/Advanced_WSecurity_Content.asp";
@@ -360,6 +361,9 @@ function applyRule(){
 			if(document.form.wl_channel.value  == '0' && document.form.acs_dfs.value == '1')			//Auto channel with DFS channel
 				document.form.wl1_80211h.value = "1";	
 		}
+
+		if(smart_connect_support && document.form.smart_connect_x.value == '1')
+			document.form.wl_unit.value = 0;
 
 		if (based_modelid == "RT-AC87U" && "<% nvram_get("wl_unit"); %>" == "1")
 			detect_qtn_ready();
@@ -593,7 +597,7 @@ function regen_auto_option(obj){
 		<td>
 			<div class="drword" id="drword"><#Main_alert_proceeding_desc4#> <#Main_alert_proceeding_desc1#>...
 				<br/>
-				<div id="disconnect_hint" style="display:none;">This may interrupt your internet connection.</div>
+				<div id="disconnect_hint" style="display:none;"><#Main_alert_proceeding_desc2#></div>
 				<br/>
 		    </div>
 			<div id="wireless_client_detect" style="margin-left:10px;position:absolute;display:none">
@@ -601,7 +605,7 @@ function regen_auto_option(obj){
 				<div style="margin:-45px 0 0 75px;"><#QKSet_Internet_Setup_fail_method1#></div>
 			</div> 
 			<div class="drImg"><img src="images/alertImg.png"></div>
-			<div style="height:70px; "></div>
+			<div style="height:100px; "></div>
 		</td>
 		</tr>
 	</table>
@@ -611,8 +615,6 @@ function regen_auto_option(obj){
 <iframe name="hidden_frame" id="hidden_frame" width="0" height="0" frameborder="0"></iframe>
 <form method="post" name="autochannelform" action="/start_apply2.htm" target="hidden_frame">
 <input type="hidden" name="productid" value="<% nvram_get("productid"); %>">
-<input type="hidden" name="wan_route_x" value="<% nvram_get("wan_route_x"); %>">
-<input type="hidden" name="wan_nat_x" value="<% nvram_get("wan_nat_x"); %>">
 <input type="hidden" name="current_page" value="Advanced_Wireless_Content.asp">
 <input type="hidden" name="next_page" value="Advanced_Wireless_Content.asp">
 <input type="hidden" name="modified" value="0">
@@ -628,8 +630,6 @@ function regen_auto_option(obj){
 </form>	
 <form method="post" name="form" action="/start_apply2.htm" target="hidden_frame">
 <input type="hidden" name="productid" value="<% nvram_get("productid"); %>">
-<input type="hidden" name="wan_route_x" value="<% nvram_get("wan_route_x"); %>">
-<input type="hidden" name="wan_nat_x" value="<% nvram_get("wan_nat_x"); %>">
 <input type="hidden" name="current_page" value="Advanced_Wireless_Content.asp">
 <input type="hidden" name="next_page" value="Advanced_Wireless_Content.asp">
 <input type="hidden" name="modified" value="0">

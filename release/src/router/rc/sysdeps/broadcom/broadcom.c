@@ -188,6 +188,15 @@ setMAC_2G(const char *mac)
 			puts(nvram_safe_get("et0macaddr"));
 			break;
 
+		case MODEL_RTAC88U:
+			memset(cmd_l, 0, 64);
+                        sprintf(cmd_l, "asuscfeet0macaddr=%s", mac);
+                        eval("nvram", "set", cmd_l );
+                        sprintf(cmd_l, "asuscfe0:macaddr=%s", mac);
+                        eval("nvram", "set", cmd_l );
+                        puts(nvram_safe_get("et0macaddr"));
+                        break;
+
 		case MODEL_RTAC3200:
 			memset(cmd_l, 0, 64);
 			sprintf(cmd_l, "asuscfeet0macaddr=%s", mac);
@@ -255,6 +264,13 @@ setMAC_5G(const char *mac)
 			break;
 		}
 
+		case MODEL_RTAC88U:
+			memset(cmd_l, 0, 64);
+                        sprintf(cmd_l, "asuscfe1:macaddr=%s", mac);
+                        eval("nvram", "set", cmd_l );
+                        puts(nvram_safe_get("1:macaddr"));
+                        break;
+
 		case MODEL_RTAC3200:
 			memset(cmd_l, 0, 64);
 			sprintf(cmd_l, "asuscfe0:macaddr=%s", mac);
@@ -317,6 +333,11 @@ setCountryCode_2G(const char *cc)
 			eval("nvram", "set", cmd );
 			puts(nvram_safe_get("0:ccode"));
 			break;
+		case MODEL_RTAC88U:
+			sprintf(cmd, "asuscfe0:ccode=%s", cc);
+                        eval("nvram", "set", cmd );
+                        puts(nvram_safe_get("0:ccode"));
+                        break;
 		case MODEL_RTAC3200:
 			sprintf(cmd, "asuscfe1:ccode=%s", cc);
 			eval("nvram", "set", cmd );
@@ -359,6 +380,12 @@ setCountryCode_5G(const char *cc)
 			eval("nvram", "set", cmd );
 			puts(nvram_safe_get("1:ccode"));
 			break;
+
+		case MODEL_RTAC88U:
+			sprintf(cmd, "asuscfe1:ccode=%s", cc);
+                        eval("nvram", "set", cmd );
+                        puts(nvram_safe_get("1:ccode"));
+                        break;
 
 		case MODEL_RTAC3200:
 			sprintf(cmd, "asuscfe0:ccode=%s", cc);
@@ -442,6 +469,14 @@ setRegrev_2G(const char *regrev)
 			puts(nvram_safe_get("0:regrev"));
 			break;
 
+		case MODEL_RTAC88U:
+			memset(cmd, 0, 32);
+                        sprintf(cmd, "asuscfe0:regrev=%s", regrev);
+                        eval("nvram", "set", cmd );
+                        puts(nvram_safe_get("0:regrev"));
+                        break;
+			
+
 		case MODEL_RTAC3200:
 			memset(cmd, 0, 32);
 			sprintf(cmd, "asuscfe1:regrev=%s", regrev);
@@ -494,6 +529,13 @@ setRegrev_5G(const char *regrev)
 			eval("nvram", "set", cmd );
 			puts(nvram_safe_get("1:regrev"));
 			break;
+
+		case MODEL_RTAC88U:
+			memset(cmd, 0, 32);
+                        sprintf(cmd, "asuscfe1:regrev=%s", regrev);
+                        eval("nvram", "set", cmd );
+                        puts(nvram_safe_get("1:regrev"));
+                        break;
 
 		case MODEL_RTAC3200:
 			memset(cmd, 0, 32);
@@ -919,6 +961,7 @@ GetPhyStatus(void)
 	case MODEL_RTAC3200:
 	case MODEL_RTN18U:
 	case MODEL_RTAC53U:
+	case MODEL_RTAC88U:
 		/* WAN L1 L2 L3 L4 */
 		ports[0]=0; ports[1]=1; ports[2]=2; ports[3]=3; ports[4]=4;
 		break;
@@ -1086,6 +1129,7 @@ setAllLedOn(void)
 			break;
 		case MODEL_RTAC68U:
 		case MODEL_RTAC3200:
+		case MODEL_RTAC88U:
 		{
 #ifdef RTAC68U
 			led_control(LED_USB, LED_ON);
@@ -1279,6 +1323,16 @@ setWlOffLed(void)
 #endif
 			}
 			break;
+
+		case MODEL_RTAC88U:
+			if (wlon_unit != 0) {
+                                eval("wl", "ledbh", "10", "0");                 // wl 2.4G
+                        } else {
+                                eval("wl", "-i", "eth2", "ledbh", "10", "0");   // wl 5G
+                                led_control(LED_5G, LED_OFF);
+                        }
+                        break;
+
 		case MODEL_RTAC3200:
 		{
 			if (wlon_unit != 0 && wlon_unit_ex != 0)
@@ -1389,6 +1443,7 @@ setAllLedOff(void)
 			break;
 		case MODEL_RTAC68U:
 		case MODEL_RTAC3200:
+		case MODEL_RTAC88U:
 		{
 #ifdef RTAC68U
 			led_control(LED_USB, LED_OFF);
@@ -1567,6 +1622,7 @@ setATEModeLedOn(void){
 		case MODEL_RPAC68U:
 		case MODEL_RTAC68U:
 		case MODEL_RTAC3200:
+		case MODEL_RTAC88U:
 		{
 			led_control(LED_USB, LED_ON);
 			led_control(LED_USB3, LED_ON);
@@ -1786,6 +1842,7 @@ getMAC_5G(void)
 		case MODEL_RTAC68U:
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
+		case MODEL_RTAC88U:
 			puts(nvram_safe_get("1:macaddr"));
 			break;
 	}
@@ -1862,6 +1919,7 @@ getCountryCode_2G(void)
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
 		case MODEL_RTN18U:
+		case MODEL_RTAC88U:
 			puts(nvram_safe_get("0:ccode"));
 			break;
 		case MODEL_RTAC3200:
@@ -1891,6 +1949,7 @@ getCountryCode_5G(void)
 		case MODEL_RTAC68U:
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
+		case MODEL_RTAC88U:
 			puts(nvram_safe_get("1:ccode"));
 			break;
 		case MODEL_RTAC3200:
@@ -1949,6 +2008,7 @@ getRegrev_2G(void)
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
 		case MODEL_RTN18U:
+		case MODEL_RTAC88U:
 			puts(nvram_safe_get("0:regrev"));
 			break;
 
@@ -1988,6 +2048,7 @@ getRegrev_5G(void)
 		case MODEL_RTAC68U:
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
+		case MODEL_RTAC88U:
 			puts(nvram_safe_get("1:regrev"));
 			break;
 	}
@@ -3166,6 +3227,7 @@ reset_countrycode_2g(void)
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
 		case MODEL_RTN18U:
+		case MODEL_RTAC88U:
 			strcpy(country_code_str, "0:ccode");
 			break;
 
@@ -3200,6 +3262,7 @@ reset_countrycode_5g(void)
 		case MODEL_RTAC68U:
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
+		case MODEL_RTAC88U:
 			strcpy(country_code_str, "1:ccode");
 			break;
 
@@ -3261,6 +3324,7 @@ reset_countryrev_2g(void)
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
 		case MODEL_RTN18U:
+		case MODEL_RTAC88U:
 			strcpy(country_rev_str, "0:regrev");
 			break;
 
@@ -3306,6 +3370,7 @@ reset_countryrev_5g(void)
 		case MODEL_RTAC56S:
 		case MODEL_RTAC56U:
 		case MODEL_RTAC87U:
+		case MODEL_RTAC88U:
 			strcpy(country_rev_str, "1:regrev");
 			break;
 	}
@@ -3329,3 +3394,32 @@ reset_countryrev_5g(void)
 #endif
 	return 0;
 }
+
+#ifdef RTAC3200
+extern struct nvram_tuple router_defaults[];
+
+void
+bsd_defaults(void)
+{
+	char extendno_org[14];
+	int ext_num;
+	char ext_commit_str[8];
+	struct nvram_tuple *t;
+
+	if (!strlen(nvram_safe_get("extendno_org")) ||
+		nvram_match("extendno_org", nvram_safe_get("extendno")))
+		return;
+
+	strcpy(extendno_org, nvram_safe_get("extendno_org"));
+	if (!strlen(extendno_org) ||
+		sscanf(extendno_org, "%d-g%s", &ext_num, ext_commit_str) != 2)
+		return;
+
+//	if (strcmp(rt_serialno, "378") || (ext_num >= 4120))
+//		return;
+
+	for (t = router_defaults; t->name; t++)
+		if (strstr(t->name, "bsd"))
+			nvram_set(t->name, t->value);
+}
+#endif

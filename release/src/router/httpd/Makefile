@@ -25,7 +25,7 @@ ifeq ($(RTN14U),y)
 CFLAGS += -DBAND_2G_ONLY
 endif
 
-ifeq ($(RTN14U)$(RTAC52U)$(RTAC51U)$(RTN11P)$(RTN54U)$(RTAC1200HP)$(RTN56UV2),y)
+ifeq ($(RTN14U)$(RTAC52U)$(RTAC51U)$(RTN11P)$(RTN54U)$(RTAC1200HP)$(RTN56UB1)$(RTAC54U),y)
 CFLAGS += -DRA_ESW
 endif
 
@@ -73,7 +73,7 @@ OBJS += geoiplookup.o
 endif
 
 ifeq ($(RTCONFIG_HTTPS),y)
-OBJS += pwenc.o
+OBJS += $(if $(wildcard pwenc.c), pwenc.o, prebuild/pwenc.o)
 endif
 
 LIBS = -L$(TOP)/nvram${BCMEX} -lnvram -L$(TOP)/shared -lshared

@@ -247,6 +247,8 @@ function addRow_main(obj, length){
 		apps_filter_col = apps_filter_row[i].split(">");
 		if(apps_filter_col[1] == document.form.PC_mac.value){
 			alert("<#JS_duplicate#>");
+			document.form.PC_mac.value = "";
+			document.form.PC_devicename.value = "";
 			return false;
 		}
 	}
@@ -303,8 +305,8 @@ function genMain_table(){
 							 ["<#AiProtection_filter_Adult3#>", "<#AiProtection_filter_Adult5#>", "<#AiProtection_filter_Adult6#>", "<#AiProtection_filter_Adult7#>", "<#AiProtection_filter_Adult8#>"],
 							 ["<#AiProtection_filter_p2p1#>", "<#AiProtection_filter_p2p2#>"],
 							 ["<#AiProtection_filter_stream1#>", "<#AiProtection_filter_stream2#>", "<#AiProtection_filter_stream3#>"]];
-	var category_desc = ["Block adult content can prevent child from visiting sexy, violence and illegal related content.", 
-						 "Block IM and communication content can prevent child from addicted to social networking usage.", 
+	var category_desc = ["<#AiProtection_filter_Adult_desc#>", 
+						 "<#AiProtection_filter_message_desc#>", 
 						 "<#AiProtection_filter_p2p_desc#>", 
 						 "<#AiProtection_filter_stream_desc#>"];
 		
@@ -557,10 +559,11 @@ function edit_table(){
 	apps_filter = apps_filter_temp;
 	return true;
 }
-						
+
+var ctf_disable = '<% nvram_get("ctf_disable"); %>';
+var ctf_fa_mode = '<% nvram_get("ctf_fa_mode"); %>';					
 function applyRule(){
 	var apps_filter_row = "";
-	
 	if(document.form.PC_devicename.value != ""){
 		alert("You must press add icon to add a new rule first.");
 		return false;
@@ -635,6 +638,15 @@ function applyRule(){
 	document.form.action_script.value = "restart_wrs;restart_firewall";
 	document.form.wrs_rulelist.value = wrs_rulelist;
 	document.form.wrs_app_rulelist.value = apps_rulelist;
+	if(ctf_disable == 0 && ctf_fa_mode == 2){
+		if(!confirm(Untranslated.ctf_fa_hint)){
+			return false;
+		}	
+		else{
+			document.form.action_script.value = "reboot";
+			document.form.action_wait.value = "<% nvram_get("reboot_time"); %>";
+		}	
+	}
 	showLoading();	
 	document.form.submit();
 }

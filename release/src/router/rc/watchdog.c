@@ -100,6 +100,11 @@ static int log_commit_count = 0;
 #define MODEM_FLOW_PERIOD	1
 unsigned int modem_flow_count = 0;
 #endif
+#if defined(RTCONFIG_TOR) && (defined(RTCONFIG_JFFS2) || defined(RTCONFIG_BRCM_NAND_JFFS2))
+#define TOR_CHECK_PERIOD	10		/* 10 x 30 seconds */
+unsigned int tor_check_count = 0;
+#endif
+
 
 #if 0
 static int cpu_timer = 0;
@@ -212,6 +217,7 @@ void erase_nvram(void)
 		case MODEL_RTAC68U:
 		case MODEL_DSLAC68U:
 		case MODEL_RTAC87U:
+		case MODEL_RTAC88U:
 			eval("mtd-erase2", "nvram");
 			break;
 		default:
@@ -229,6 +235,7 @@ int init_toggle(void)
 		case MODEL_RTAC68U:
 		case MODEL_DSLAC68U:
 		case MODEL_RTAC87U:
+		case MODEL_RTAC88U:
 			nvram_set("btn_ez_radiotoggle", "1");
 			return BTN_WIFI_TOG;
 		default:
@@ -1384,7 +1391,7 @@ void led_check(void)
 #endif
 	
 
-#if defined(RTN56UV2)
+#if defined(RTN56UB1)
                 if(nvram_get_int("wl1_ledon") == 1 && g_wl1_led_status!=1)
                         led_control(LED_5G, LED_ON);
 		else if(nvram_get_int("wl1_ledon") == 0 && g_wl1_led_status!=0)
@@ -1783,7 +1790,7 @@ static void auto_firmware_check()
 		}
 	}
 #ifdef RTAC68U
-	else if (nvram_match("bl_version", "2.1.2.2")) {
+	else if (nvram_match("bl_version", "2.1.2.4")) {
 		periodic_check = 1;
 		nvram_set_int("fw_check_period", 10);
 	}
@@ -2375,6 +2382,46 @@ ERROR:
 }
 #endif
 
+#ifdef RTCONFIG_TOR
+#if (defined(RTCONFIG_JFFS2)||defined(RTCONFIG_BRCM_NAND_JFFS2))
+static void Tor_microdes_check(){
+
+	FILE *f;
+	char buf[256];
+	char *ifname, *p;
+	unsigned long counter1, counter2;
+	struct stat tmp_db_stat, jffs_db_stat;
+        int tmp_stat, jffs_stat;
+
+	if(++tor_check_count >= TOR_CHECK_PERIOD) {
+		tor_check_count = 0;
+
+		jffs_stat = stat("/jffs/.tordb/cached-microdesc-consensus", &jffs_db_stat);
+		if(jffs_stat != -1){
+			return;
+		}
+
+		tmp_stat = stat("/tmp/.tordb/cached-microdesc-consensus", &tmp_db_stat);
+        	if(tmp_stat == -1){
+                	return;
+		}
+
+		if((f = fopen("/tmp/torlog", "r"))==NULL) return -1;
+
+		while (fgets(buf, sizeof(buf), f)) {
+                	if((p=strstr(buf, "now have enough directory"))==NULL) continue;
+                	*p = 0;
+			eval("cp", "-rf", "/tmp/.tordb", "/jffs/.tordb");
+			break;
+        	}
+        	fclose(f);
+	}
+
+        return;
+}
+#endif
+#endif
+
 #if 0
 static time_t	tt=0, tt_old=0;
 static int 	bcnt=0;
@@ -2502,6 +2549,10 @@ void watchdog(int sig)
 	check_bwdpi_monitor();
 #endif
 
+#if defined(RTCONFIG_TOR) && (defined(RTCONFIG_JFFS2) || defined(RTCONFIG_BRCM_NAND_JFFS2))
+	if(nvram_get_int("Tor_enable"))
+		Tor_microdes_check();
+#endif
 	return;
 }
 

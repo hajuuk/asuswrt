@@ -3,7 +3,7 @@ include ../common.mak
 ASUSWRTTOOLSDIR = $(SRCBASE)/router/tools/Lnx_AsusWrtDictPrep
 ASUSWRTTOOLSDIR2 = $(SRCBASE)/router/tools/Lnx_ToolHelp
 
-MODELS_HAVE_USB3 = "DSL-AC68U RT-AC3200 RT-AC87U RT-AC69U RT-AC68U RT-AC56S RT-AC56U RT-AC55U RT-N18U TM-AC1900 RT-N65U"
+MODELS_HAVE_USB3 = "DSL-AC68U RT-AC3200 RT-AC87U RT-AC69U RT-AC68U RT-AC56S RT-AC56U RT-AC55U RT-AC55UHP RT-N18U RT-N65U"
 
 all:
 
@@ -348,6 +348,9 @@ ifneq ($(BUILD_NAME),RT-AC3200)
 	rm -rf $(INSTALLDIR)/www/datepicker.css
 endif
 endif
+ifneq ($(RTCONFIG_ADBLOCK),y)
+	rm -rf $(INSTALLDIR)/www/AiProtection_AdBlock.asp
+endif
 
 ifneq ($(RTCONFIG_ROG),y)
 	rm -rf $(INSTALLDIR)/www/images/ROG_Logo.png
@@ -394,3 +397,6 @@ ifneq ($(RTCONFIG_JFFS2USERICON), y)
 	rm -rf $(INSTALLDIR)/www/ajax_uploadicon.asp
 endif
 
+ifneq ($(RTCONFIG_TR069), y)
+	rm -rf $(INSTALLDIR)/www/Advanced_TR069_Content.asp
+endif

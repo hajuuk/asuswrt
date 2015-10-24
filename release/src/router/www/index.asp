@@ -107,7 +107,7 @@
 .dhcp{
 	background-image: url('/images/New_ui/networkmap/unlock.png');
 }
-.static{
+.manual{
 	background-image: url('/images/New_ui/networkmap/lock.png');
 }
 #tdUserIcon:hover{
@@ -199,11 +199,7 @@ var webs_state_info= '<% nvram_get("webs_state_info"); %>';
 
 
 // WAN
-<% wanlink(); %>
-wan_route_x = '<% nvram_get("wan_route_x"); %>';
-wan_nat_x = '<% nvram_get("wan_nat_x"); %>';
-wan_proto = '<% nvram_get("wan_proto"); %>';
-var wanstate = -1;
+<% wanlink(); %>var wanstate = -1;
 var wansbstate = -1;
 var wanauxstate = -1;
 var Dev3G = '<% nvram_get("d3g"); %>';
@@ -285,6 +281,24 @@ function initial(){
 
 			if(typeof usbPorts[usbDevicesList[i].usbPath-1].deviceType == "undefined" || usbPorts[usbDevicesList[i].usbPath-1].deviceType == "")
 				show_USBDevice(usbDevicesList[i]);
+		}
+
+		for(var usbIndex = 1; usbIndex <= usbPortMax; usbIndex += 1) {
+			var usb_mount_count = document.getElementById("deviceOption_" + usbIndex).length;
+			if( usb_mount_count >= 2) {
+				var divUsbMountCount = document.createElement("div");
+				divUsbMountCount.className = "usb_count_circle";
+				divUsbMountCount.innerHTML = usb_mount_count;
+				document.getElementById("deviceText_" + usbIndex).appendChild(divUsbMountCount);
+
+				$j(".usb_count_circle").mouseover(function(){
+					return overlib(this.innerHTML + " usb devices are plugged in <% nvram_get("productid"); %> through this port.");
+				});
+
+				$j(".usb_count_circle").mouseout(function(){
+					nd();
+				});
+			}
 		}
 	});
 
@@ -690,12 +704,8 @@ function mouseEvent(obj, key){
 		icon = "iconInternet";
 	else if(obj.id.indexOf("Router") > 0)
 		icon = "iconRouter";
-	else if(obj.id.indexOf("Client") > 0){
-		if(wan_route_x == "IP_Bridged")
-			return;
-
+	else if(obj.id.indexOf("Client") > 0)
 		icon = "iconClient";
-	}
 	else if(obj.id.indexOf("USBdisk") > 0)
 		icon = "iconUSBdisk";
 	else if(obj.id.indexOf("Printer") > 0)
@@ -760,7 +770,7 @@ function check_status(_device){
 	/*if(navigator.appName.indexOf("Microsoft") >= 0)
 		document.getElementById('iconUSBdisk_'+diskOrder).style.marginLeft = "0px";
 	else*/
-		document.getElementById('iconUSBdisk_'+diskOrder).style.marginLeft = "35px";
+		document.getElementById('iconUSBdisk_'+diskOrder).style.marginLeft = "34px";
 
 	document.getElementById('ring_USBdisk_'+diskOrder).style.backgroundImage = "url(/images/New_ui/networkmap/white_04.gif)";	
 	document.getElementById('ring_USBdisk_'+diskOrder).style.display = "";
@@ -984,16 +994,18 @@ function validForm(){
 		return retFlag;
 	}
 
-	if(validateIpRange(document.getElementById("ipaddr_field")) == true){									
-		document.list_form.dhcp_staticlist.value.split("<").forEach(function(element, index){
-			if(element.indexOf(document.getElementById("macaddr_field").value) != -1){
-				var tmpArray = document.list_form.dhcp_staticlist.value.split("<")
-				tmpArray[index] = document.getElementById("macaddr_field").value;
-				tmpArray[index] += ">";
-				tmpArray[index] += document.getElementById("ipaddr_field").value;
-				document.list_form.dhcp_staticlist.value = tmpArray.join("<");
-			}
-		});
+	if(validateIpRange(document.getElementById("ipaddr_field")) == true ){		
+		if(document.getElementById("ipLockIcon").className != "dhcp") {	// only ipLockIcon is lock then update dhcp_staticlist						
+			document.list_form.dhcp_staticlist.value.split("<").forEach(function(element, index){
+				if(element.indexOf(document.getElementById("macaddr_field").value) != -1){
+					var tmpArray = document.list_form.dhcp_staticlist.value.split("<")
+					tmpArray[index] = document.getElementById("macaddr_field").value;
+					tmpArray[index] += ">";
+					tmpArray[index] += document.getElementById("ipaddr_field").value;
+					document.list_form.dhcp_staticlist.value = tmpArray.join("<");
+				}
+			});
+		}
 	}
 	else		
 		return false;
@@ -1046,14 +1058,21 @@ function edit_confirm(){
 		document.list_form.custom_clientlist.value = custom_name;
 
 		// static IP list
-		if(document.list_form.dhcp_staticlist.value != dhcp_staticlist_orig || document.list_form.dhcp_static_x.value == 0){
+		if(document.list_form.dhcp_staticlist.value == dhcp_staticlist_orig){
+			document.list_form.action_script.value = "saveNvram";
+			document.list_form.action_wait.value = "1";
+			document.list_form.flag.value = "background";
+			document.list_form.dhcp_staticlist.disabled = true;
+			document.list_form.dhcp_static_x.disabled = true;
+			dhcp_staticlist_orig = document.list_form.dhcp_staticlist.value;
+		}
+		else {
 			document.list_form.action_script.value = "restart_net_and_phy";
 			document.list_form.action_wait.value = "35";
 			document.list_form.flag.value = "";
 			document.list_form.dhcp_staticlist.disabled = false;
 			document.list_form.dhcp_static_x.value = 1;
 			document.list_form.dhcp_static_x.disabled = false;
-			dhcp_staticlist_orig = document.list_form.dhcp_staticlist.value;
 		}
 
 		// handle user image
@@ -1279,7 +1298,12 @@ function popupEditBlock(clientObj){
 		document.getElementById('ipaddr_field').value = clientObj.ip;
 		document.getElementById('macaddr_field').value = clientObj.mac;
 		select_image("type" + parseInt(clientObj.type));
-		document.getElementById("ipLockIcon").className = clientObj.isStaticIP ? "static" : "dhcp";
+		if(dhcp_staticlist_orig.search(clientObj.mac + ">" + clientObj.ip) != -1) { //check mac>ip is combination the the ipLockIcon is manual
+			document.getElementById("ipLockIcon").className = "manual";
+		}
+		else {
+			document.getElementById("ipLockIcon").className = "dhcp";
+		}
 
 		// hide block btn
 		// document.getElementById("blockBtn").style.display = (clientObj.isWL && document.maclist_form.wl0_macmode.value != "allow") ? "" : "none";
@@ -1332,7 +1356,7 @@ function cal_panel_block(obj){
 }
 
 function check_usb3(){
-	if(based_modelid == "DSL-AC68U" || based_modelid == "RT-AC3200" || based_modelid == "RT-AC87U" || based_modelid == "RT-AC69U" || based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "RT-AC56S" || based_modelid == "RT-AC56U" || based_modelid == "RT-AC55U" || based_modelid == "RT-N18U" || based_modelid == "TM-AC1900"){
+	if(based_modelid == "DSL-AC68U" || based_modelid == "RT-AC3200" || based_modelid == "RT-AC87U" || based_modelid == "RT-AC69U" || based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "RT-AC56S" || based_modelid == "RT-AC56U" || based_modelid == "RT-AC55U" || based_modelid == "RT-AC55UHP" || based_modelid == "RT-N18U"){
 		document.getElementById('usb1_image').src = "images/New_ui/networkmap/USB3.png";
 	}
 	else if(based_modelid == "RT-N65U"){
@@ -1514,7 +1538,7 @@ function previewImage(imageObj) {
 		<td>
 			<div class="drword" id="drword"><#Main_alert_proceeding_desc4#> <#Main_alert_proceeding_desc1#>...
 				<br>
-				<div id="disconnect_hint" style="display:none;">This may interrupt your internet connection.</div>
+				<div id="disconnect_hint" style="display:none;"><#Main_alert_proceeding_desc2#></div>
 				<br>
 		    </div>
 			<div id="wireless_client_detect" style="margin-left:10px;position:absolute;display:none">
@@ -1522,7 +1546,7 @@ function previewImage(imageObj) {
 				<div style="margin:-45px 0 0 75px;"><#QKSet_Internet_Setup_fail_method1#></div>
 			</div> 
 			<div class="drImg"><img src="images/alertImg.png"></div>
-			<div style="height:70px; "></div>
+			<div style="height:100px; "></div>
 		</td>
 		</tr>
 	</table>
@@ -1664,7 +1688,7 @@ function previewImage(imageObj) {
 										$j(this).addClass("disabled");
 									}
 									document.getElementById("ipaddr_field").onkeypress = function(){
-										document.getElementById("ipLockIcon").className = "static";
+										document.getElementById("ipLockIcon").className = "manual";
 										delFromList(document.getElementById("macaddr_field").value);
 										addToList(document.getElementById("macaddr_field").value);
 									}
@@ -1674,7 +1698,7 @@ function previewImage(imageObj) {
 								<script>
 									document.getElementById("ipLockIcon").onclick = function(){
 										if(this.className == "dhcp"){
-											this.className = "static";
+											this.className = "manual";
 											delFromList(document.getElementById("macaddr_field").value);
 											addToList(document.getElementById("macaddr_field").value);
 										}

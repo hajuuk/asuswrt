@@ -179,10 +179,6 @@ function entry_cmp(entry, match, len){  //compare string length function
 	return 0;
 }
 
-
-
-
-
 function add_options_x2(o, arr, varr, orig){
 	free_options(o);
 	
@@ -1274,8 +1270,9 @@ function wl_auth_mode_change(isload){
 	}
 	
 	/*For Protected Management Frames, only enable for "(wpa)psk2" or "wpa2" on ARM platform (wl_mfp_support)*/
+	/* QTN_5G support PMF too*/
 	if(wl_mfp_support && (document.form.wl_mfp != null)){
-		if ((mode.search("psk2") >= 0 || mode.search("wpa2") >= 0) && !(based_modelid == "RT-AC87U" && '<% nvram_get("wl_unit"); %>' == '1')){
+		if ((mode.search("psk2") >= 0 || mode.search("wpa2") >= 0)){
 			inputCtrl(document.form.wl_mfp,  1);	
 		}
 		else{
@@ -1495,8 +1492,6 @@ function limit_auth_method(g_unit){
 		else{
 			if((based_modelid == "RT-AC87U" && '<% nvram_get("wl_unit"); %>' == '1') || (based_modelid == "RT-AC87U" && g_unit))
 				var auth_array = [["Open System", "open"], ["WPA2-Personal", "psk2"], ["WPA-Auto-Personal", "pskpsk2"]];
-			else if (based_modelid == "TM-AC1900")
-				var auth_array = [["Open System", "open"], ["WPA2-Personal", "psk2"], ["WPA-Auto-Personal", "pskpsk2"], ["WPA2-Enterprise", "wpa2"], ["WPA-Auto-Enterprise", "wpawpa2"]];
 			else
 				var auth_array = [["Open System", "open"], ["Shared Key", "shared"], ["WPA-Personal", "psk"], ["WPA2-Personal", "psk2"], ["WPA-Auto-Personal", "pskpsk2"], ["WPA-Enterprise", "wpa"], ["WPA2-Enterprise", "wpa2"], ["WPA-Auto-Enterprise", "wpawpa2"], ["Radius with 802.1x", "radius"]];
 			
