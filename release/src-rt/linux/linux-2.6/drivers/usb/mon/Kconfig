@@ -1,0 +1,15 @@
+#
+# USB Monitor configuration
+#
+
+config USB_MON
+	tristate "USB Monitor"
+	depends on USB!=n
+	help
+	  If you say Y here, a component which captures the USB traffic
+	  between peripheral-specific drivers and HC drivers will be built.
+	  For more information, see <file:Documentation/usb/usbmon.txt>.
+
+	  This is somewhat experimental at this time, but it should be safe.
+
+	  If unsure, say Y.
