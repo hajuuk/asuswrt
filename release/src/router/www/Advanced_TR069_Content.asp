@@ -15,7 +15,7 @@
 <script language="JavaScript" type="text/javascript" src="/general.js"></script>
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" language="JavaScript" src="/help.js"></script>
-<script type="text/javascript" src="/jquery.js"></script>
+<script type="text/javascript" src="/js/jquery.js"></script>
 
 <style type="text/css">
 .contentM_qis{
@@ -34,10 +34,11 @@
 </style>
 
 <script>
-var $j = jQuery.noConflict();
+
 
 window.onresize = cal_panel_block;
-tr_enable = '<% nvram_get("tr_enable"); %>';
+var tr_enable = '<% nvram_get("tr_enable"); %>';
+var tr_acs_url = '<% nvram_get("tr_acs_url"); %>';
 
 var jffs2_support = isSupport("jffs2");
 
@@ -54,6 +55,15 @@ function initial(){
 }
 
 function applyRule(){
+	if (document.form.tr_enable[0].checked) {
+		if (document.form.tr_acs_url.value == "")
+			document.form.tr_discovery.value = "1";
+		else if (document.form.tr_acs_url.value != tr_acs_url)
+			document.form.tr_discovery.value = "0";
+		document.form.action_script.value = "restart_tr";
+		if (document.form.tr_discovery.value != "0")
+			document.form.action_script.value += ";restart_wan_if";
+	}
 	showLoading();
 	document.form.submit();	
 }
@@ -64,12 +74,12 @@ function done_validating(action){
 
 function set_cert(){
 	cal_panel_block();
-	$j("#cert_panel").fadeIn(300);	
+	$("#cert_panel").fadeIn(300);	
 }
 
 function cancel_cert_panel(){
 	this.FromObject ="0";
-	$j("#cert_panel").fadeOut(300);	
+	$("#cert_panel").fadeOut(300);	
 	//setTimeout("document.getElementById('edit_tr_ca_cert').value = '<% nvram_clean_get("tr_ca_cert"); %>';", 300);
 	//setTimeout("document.getElementById('edit_tr_client_cert').value = '<% nvram_clean_get("tr_client_cert"); %>';", 300);
 	//setTimeout("document.getElementById('edit_tr_client_key').value = '<% nvram_clean_get("tr_client_key"); %>';", 300);
@@ -106,7 +116,7 @@ function cal_panel_block(){
 
 	}
 
-	$("cert_panel").style.marginLeft = blockmarginLeft+"px";
+	document.getElementById("cert_panel").style.marginLeft = blockmarginLeft+"px";
 }
 </script>
 </head>
@@ -187,6 +197,7 @@ function cal_panel_block(){
 <input type="hidden" name="first_time" value="">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get("preferred_lang"); %>">
 <input type="hidden" name="firmver" value="<% nvram_get("firmver"); %>">
+<input type="hidden" name="tr_discovery" value="<% nvram_get("tr_discovery"); %>">
 <input type="hidden" name="tr_ca_cert" value="<% nvram_clean_get("tr_ca_cert"); %>">
 <input type="hidden" name="tr_client_cert" value="<% nvram_clean_get("tr_client_cert"); %>">
 <input type="hidden" name="tr_client_key" value="<% nvram_clean_get("tr_client_key"); %>">
@@ -235,7 +246,7 @@ function cal_panel_block(){
 				<tr>
 					<th>URL</th>
 					<td>
-						<input type="text" maxlength="64" name="tr_acs_url" class="input_32_table" value="<% nvram_get("tr_acs_url"); %>" onKeyPress="return is_string(this,event);"/>
+						<input type="text" maxlength="64" name="tr_acs_url" class="input_32_table" value="<% nvram_get("tr_acs_url"); %>" onKeyPress="return is_string(this,event);" autocorrect="off" autocapitalize="off"/>
 						<span id="cert_text" onclick="set_cert();" style="text-decoration:underline;cursor:pointer;">Import Certificate</span>
 					</td>
 				</tr>
@@ -243,14 +254,14 @@ function cal_panel_block(){
 				<tr>
 					<th>User Name</th>
 					<td>
-						<input type="text" maxlength="32" name="tr_username" class="input_15_table" value="<% nvram_get("tr_username"); %>" onKeyPress="return is_string(this,event);"/>
+						<input type="text" maxlength="32" name="tr_username" class="input_15_table" value="<% nvram_get("tr_username"); %>" onKeyPress="return is_string(this,event);" autocorrect="off" autocapitalize="off"/>
 					</td>
 				</tr>
 
 				<tr>
 					<th>Password</th>
 					<td>
-						<input type="password" maxlength="32" name="tr_passwd" class="input_15_table" value="<% nvram_get("tr_passwd"); %>" onKeyPress="return is_string(this,event);"/>
+						<input type="password" maxlength="32" name="tr_passwd" class="input_15_table" value="<% nvram_get("tr_passwd"); %>" onKeyPress="return is_string(this,event);" autocorrect="off" autocapitalize="off"/>
 					</td>
 				</tr>
 			</table>
@@ -265,14 +276,14 @@ function cal_panel_block(){
 				<tr>
 					<th>User Name</th>
 					<td>
-						<input type="text" maxlength="32" name="tr_conn_username" class="input_15_table" value="<% nvram_get("tr_conn_username"); %>" onKeyPress="return is_string(this,event);"/>
+						<input type="text" maxlength="32" name="tr_conn_username" class="input_15_table" value="<% nvram_get("tr_conn_username"); %>" onKeyPress="return is_string(this,event);" autocorrect="off" autocapitalize="off"/>
 					</td>
 				</tr>
 
 				<tr>
 					<th>Password</th>
 					<td>
-						<input type="password" maxlength="32" name="tr_conn_passwd" class="input_15_table" value="<% nvram_get("tr_conn_passwd"); %>" onKeyPress="return is_string(this,event);"/>
+						<input type="password" maxlength="32" name="tr_conn_passwd" class="input_15_table" value="<% nvram_get("tr_conn_passwd"); %>" onKeyPress="return is_string(this,event);" autocorrect="off" autocapitalize="off"/>
 					</td>
 				</tr>
 			</table>
@@ -295,7 +306,7 @@ function cal_panel_block(){
 				<tr>
 					<th>Interval</th>
 					<td>
-						<input type="text" maxlength="10" name="tr_inform_interval" class="input_15_table" value="<% nvram_get("tr_inform_interval"); %>" onKeyPress="return is_number(this,event);"/>
+						<input type="text" maxlength="10" name="tr_inform_interval" class="input_15_table" value="<% nvram_get("tr_inform_interval"); %>" onKeyPress="return is_number(this,event);" autocorrect="off" autocapitalize="off"/>
 					</td>
 				</tr>	
         	</table>

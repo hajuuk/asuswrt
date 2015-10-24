@@ -49,12 +49,16 @@
 char wan6face[IFNAMSIZ + 1];
 // RFC-4890, sec. 4.3.1
 const int allowed_icmpv6[] = { 1, 2, 3, 4, 128, 129 };
+// RFC-4890, sec. 4.4.1
+const int allowed_local_icmpv6[] =
+	{ 130, 131, 132, 133, 134, 135, 136,
+	  141, 142, 143,
+	  148, 149, 151, 152, 153 };
 #endif
 
 char *mac_conv(char *mac_name, int idx, char *buf);	// oleg patch
 
 void write_porttrigger(FILE *fp, char *wan_if, int is_nat);
-void write_upnp_filter(FILE *fp, char *wan_if);
 #ifdef WEB_REDIRECT
 void redirect_setting();
 #endif
@@ -922,93 +926,6 @@ void convert_routes(void)
 	}
 }
 
-void
-//write_upnp_forward(FILE *fp, FILE *fp1, char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *lan_class, char *logaccept, char *logdrop)
-write_upnp_forward(FILE *fp, char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *lan_class, char *logaccept, char *logdrop)	// oleg patch
-{
-	char name[] = "forward_portXXXXXXXXXX", value[512];
-	char *wan_port0, *wan_port1, *lan_ipaddr, *lan_port0, *lan_port1, *proto;
-	char *enable, *desc;
-	int i;
-
-	/* Set wan_port0-wan_port1>lan_ipaddr:lan_port0-lan_port1,proto,enable,desc */
-	for (i=0 ; i<15 ; i++)
-	{
-		snprintf(name, sizeof(name), "forward_port%d", i);
-
-		strncpy(value, nvram_safe_get(name), sizeof(value));
-
-		/* Check for LAN IP address specification */
-		lan_ipaddr = value;
-		wan_port0 = strsep(&lan_ipaddr, ">");
-		if (!lan_ipaddr)
-			continue;
-
-		/* Check for LAN destination port specification */
-		lan_port0 = lan_ipaddr;
-		lan_ipaddr = strsep(&lan_port0, ":");
-		if (!lan_port0)
-			continue;
-
-		/* Check for protocol specification */
-		proto = lan_port0;
-		lan_port0 = strsep(&proto, ":,");
-		if (!proto)
-			continue;
-
-		/* Check for enable specification */
-		enable = proto;
-		proto = strsep(&enable, ":,");
-		if (!enable)
-			continue;
-
-		/* Check for description specification (optional) */
-		desc = enable;
-		enable = strsep(&desc, ":,");
-
-		/* Check for WAN destination port range (optional) */
-		wan_port1 = wan_port0;
-		wan_port0 = strsep(&wan_port1, "-");
-		if (!wan_port1)
-			wan_port1 = wan_port0;
-
-		/* Check for LAN destination port range (optional) */
-		lan_port1 = lan_port0;
-
-		lan_port0 = strsep(&lan_port1, "-");
-		if (!lan_port1)
-			lan_port1 = lan_port0;
-
-		/* skip if it's disabled */
-		if ( strcmp(enable, "off") == 0 )
-			continue;
-
-		/* -A PREROUTING -p tcp -m tcp --dport 823 -j DNAT
-				 --to-destination 192.168.1.88:23  */
-		if ( !strcmp(proto,"tcp") || !strcmp(proto,"both") )
-		{
-			//fprintf(fp, "-A PREROUTING -p tcp -m tcp -d %s --dport %s "
-			fprintf(fp, "-A VSERVER -p tcp -m tcp --dport %s "	// oleg patch
-				  "-j DNAT --to-destination %s:%s\n"
-					//, wan_ip, wan_port0, lan_ipaddr, lan_port0);	// oleg patch
-
-			//fprintf(fp1, "-A FORWARD -p tcp "		// oleg patch
-			//	 "-m tcp -d %s --dport %s -j %s\n"	// oleg patch
-			//	 , lan_ipaddr, lan_port0, logaccept);	// oleg patch
-			, wan_port0, lan_ipaddr, lan_port0);		// oleg patch
-		}
-		if ( !strcmp(proto,"udp") || !strcmp(proto,"both") ) {
-			//fprintf(fp, "-A PREROUTING -p udp -m udp -d %s --dport %s "	// oleg patch
-			fprintf(fp, "-A VSERVER -p udp -m udp --dport %s "		// oleg patch
-				  "-j DNAT --to-destination %s:%s\n"
-				  	//, wan_ip, wan_port0, lan_ipaddr, lan_port0);	// oleg patch
-
-			//fprintf(fp1, "-A FORWARD -p udp -m udp -d %s --dport %s -j %s\n"	// oleg patch
-			//	 , lan_ipaddr, lan_port0, logaccept);				// oleg patch
-			, wan_port0, lan_ipaddr, lan_port0);					// oleg patch
-		}
-	}
-}
 /*
 char *ipoffset(char *ip, int offset, char *tmp)
 {
@@ -1127,6 +1044,30 @@ void write_yandexdns_filter6(FILE *fp, char *lan_if, char *lan_ip)
 #endif /* RTCONFIG_IPV6 */
 #endif /* RTCONFIG_YANDEXDNS */
 
+#ifdef RTCONFIG_REDIRECT_DNAME
+void redirect_nat_setting(){
+	FILE *fp;
+	char *lan_ip = nvram_safe_get("lan_ipaddr");
+	char name[PATH_MAX];
+
+	sprintf(name, "%s_%s", NAT_RULES,nvram_safe_get("productid"));
+	if((fp = fopen(name, "w")) == NULL)
+		return;
+
+	fprintf(fp, "*nat\n"
+		":PREROUTING ACCEPT [0:0]\n"
+		":POSTROUTING ACCEPT [0:0]\n"
+		":OUTPUT ACCEPT [0:0]\n");
+	fprintf(fp, "-A PREROUTING -p udp --dport 53 -j DNAT --to-destination %s:53\n", lan_ip);
+	fprintf(fp, "COMMIT\n");
+
+	fclose(fp);
+
+	unlink(NAT_RULES);
+	symlink(name, NAT_RULES);
+
+}
+#endif
 #ifdef RTCONFIG_WIRELESSREPEATER
 void repeater_nat_setting(){
 	FILE *fp;
@@ -1144,6 +1085,9 @@ void repeater_nat_setting(){
 
 	fprintf(fp, "-A PREROUTING -d 10.0.0.1 -p tcp --dport 80 -j DNAT --to-destination %s:80\n", lan_ip);
 	fprintf(fp, "-A PREROUTING -d %s -p tcp --dport 80 -j DNAT --to-destination %s:80\n", nvram_default_get("lan_ipaddr"), lan_ip);
+#ifdef RTCONFIG_REDIRECT_DNAME
+	fprintf(fp, "-A PREROUTING -p udp --dport 53 -j DNAT --to-destination %s:53\n", lan_ip);
+#endif	
 	fprintf(fp, "-A PREROUTING -p udp --dport 53 -j DNAT --to-destination %s:18018\n", lan_ip);
 	fprintf(fp, "COMMIT\n");
 
@@ -1154,6 +1098,44 @@ void repeater_nat_setting(){
 
 	return;
 }
+
+#ifdef RTCONFIG_RESTRICT_GUI
+void repeater_filter_setting(int mode){
+	FILE *fp;
+	char lan_if[32];
+	char word[PATH_MAX], *next_word;
+
+	if((fp = fopen("/tmp/filter_rules", "w")) == NULL)
+		return;
+
+	snprintf(lan_if, 32, "%s", nvram_safe_get("lan_ifnames"));
+
+	fprintf(fp, "*filter\n"
+			":INPUT ACCEPT [0:0]\n"
+			);
+
+	if(nvram_get_int("fw_restrict_gui")){
+		if(mode){
+			foreach(word, lan_if, next_word){
+				if(!strncmp(word, "vlan", 4))
+					continue;
+
+				fprintf(fp, "-A INPUT -i %s -m mark --mark %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+						word, BIT_RES_GUI, nvram_safe_get("lan_ipaddr"), nvram_safe_get("https_lanport"));
+			}
+		}
+		else{
+			fprintf(fp, "-A INPUT -i %s -m mark --mark %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+					nvram_safe_get("lan_ifname"), BIT_RES_GUI, nvram_safe_get("lan_ipaddr"), nvram_safe_get("https_lanport"));
+		}
+	}
+
+	fprintf(fp, "COMMIT\n\n");
+	fclose(fp);
+
+	eval("iptables-restore", "/tmp/filter_rules");
+}
+#endif
 #endif
 
 void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	// oleg patch
@@ -1257,14 +1239,8 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 
 	if (is_nat_enabled() && nvram_match("upnp_enable", "1"))
 	{
-#if 1
 		/* call UPNP chain */
 		fprintf(fp, "-A VSERVER -j VUPNP\n");
-#else
-		// upnp port forward
-		//write_upnp_forward(fp, fp1, wan_if, wan_ip, lan_if, lan_ip, lan_class, logaccept, logdrop);
-		write_upnp_forward(fp, wan_if, wan_ip, lan_if, lan_ip, lan_class, logaccept, logdrop);	// oleg patch
-#endif
 	}
 
 	// Port forwarding or Virtual Server
@@ -1305,11 +1281,9 @@ void nat_setting(char *wan_if, char *wan_ip, char *wanx_if, char *wanx_ip, char 
 		free(nv);
 	}
 
+	/* Trigger port setting */
 	if (is_nat_enabled() && nvram_match("autofw_enable_x", "1"))
-	{
-		/* Trigger port setting */
 		write_porttrigger(fp, wan_if, 1);
-	}
 
 #if 0
 	if (is_nat_enabled() && !nvram_match("sp_battle_ips", "0") && inet_addr_(wan_ip))	// oleg patch
@@ -1531,23 +1505,8 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 
 	if (is_nat_enabled() && nvram_match("upnp_enable", "1"))
 	{
-#if 1
 		/* call UPNP chain */
 		fprintf(fp, "-A VSERVER -j VUPNP\n");
-#else
-		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
-			snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-			if(nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
-				continue;
-
-			wan_if = get_wan_ifname(unit);
-			wan_ip = nvram_safe_get(strcat_r(prefix, "ipaddr", tmp));
-
-			// upnp port forward
-			//write_upnp_forward(fp, fp1, wan_if, wan_ip, lan_if, lan_ip, lan_class, logaccept, logdrop);
-			write_upnp_forward(fp, wan_if, wan_ip, lan_if, lan_ip, lan_class, logaccept, logdrop);	// oleg patch
-		}
-#endif
 	}
 
 	// Port forwarding or Virtual Server
@@ -1588,18 +1547,15 @@ void nat_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)	//
 		free(nv);
 	}
 
-	for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
+	/* Trigger port setting */
+	if (is_nat_enabled() && nvram_match("autofw_enable_x", "1"))
+	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 		if(nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
 			continue;
 
 		wan_if = get_wan_ifname(unit);
-
-		if (is_nat_enabled() && nvram_match("autofw_enable_x", "1"))
-		{
-			/* Trigger port setting */
-			write_porttrigger(fp, wan_if, 1);
-		}
+		write_porttrigger(fp, wan_if, 1);
 	}
 
 #if 0
@@ -1699,7 +1655,7 @@ void redirect_setting(void)
 {
 	FILE *nat_fp, *redirect_fp;
 	char tmp_buf[1024];
-	char *lan_ipaddr_t, *lan_netmask_t, lan_ifname_t;
+	char *lan_ipaddr_t, *lan_netmask_t;
 
 #ifdef RTCONFIG_WIRELESSREPEATER
 	if(nvram_get_int("sw_mode") == SW_MODE_REPEATER && !nvram_match("lan_proto", "static")){
@@ -1790,11 +1746,36 @@ start_default_filter(int lanunit)
 	if ((fp = fopen("/tmp/filter.default", "w")) == NULL)
 		return;
 	fprintf(fp, "*filter\n"
-	    ":INPUT DROP [0:0]\n"
-	    ":FORWARD DROP [0:0]\n"
-	    ":OUTPUT ACCEPT [0:0]\n"
-	    ":logaccept - [0:0]\n"
-	    ":logdrop - [0:0]\n");
+		":INPUT DROP [0:0]\n"
+		":FORWARD DROP [0:0]\n"
+		":OUTPUT ACCEPT [0:0]\n"
+		":logaccept - [0:0]\n"
+		":logdrop - [0:0]\n");
+
+#ifdef RTCONFIG_RESTRICT_GUI
+	char word[PATH_MAX], *next_word;
+
+#if 0
+	if(nvram_get_int("fw_restrict_gui") && strlen(nvram_safe_get("fw_restrict_gui_mac"))){
+		foreach_60(word, nvram_safe_get("fw_restrict_gui_mac"), next_word){
+			fprintf(fp, "-A INPUT -i %s -m mac --mac-source %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j ACCEPT\n",
+					lan_if, word, nvram_safe_get("lan_ipaddr"), nvram_safe_get("https_lanport"));
+		}
+		fprintf(fp, "-A INPUT -i %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+				lan_if, nvram_safe_get("lan_ipaddr"), nvram_safe_get("https_lanport"));
+	}
+#else
+	if(nvram_get_int("fw_restrict_gui")){
+		foreach(word, nvram_safe_get("wl_ifnames"), next_word){
+			eval("ebtables", "-t", "broute", "-D", "BROUTING", "-i", word, "-j", "mark", "--mark-set", BIT_RES_GUI, "--mark-target", "ACCEPT");
+			eval("ebtables", "-t", "broute", "-A", "BROUTING", "-i", word, "-j", "mark", "--mark-set", BIT_RES_GUI, "--mark-target", "ACCEPT");
+		}
+
+		fprintf(fp, "-A INPUT -i %s -m mark --mark %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+				lan_if, BIT_RES_GUI, nvram_safe_get("lan_ipaddr"), nvram_safe_get("https_lanport"));
+	}
+#endif
+#endif
 
 	fprintf(fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
 	fprintf(fp, "-A INPUT -m state --state INVALID -j DROP\n");
@@ -1821,12 +1802,12 @@ start_default_filter(int lanunit)
 	if ((fp = fopen("/tmp/filter_ipv6.default", "w")) == NULL)
 		return;
 	fprintf(fp, "*filter\n"
-	    ":INPUT DROP [0:0]\n"
-	    ":FORWARD DROP [0:0]\n"
-	    ":OUTPUT %s [0:0]\n"
-	    ":logaccept - [0:0]\n"
-	    ":logdrop - [0:0]\n",
-	    ipv6_enabled() ? "ACCEPT" : "DROP");
+		":INPUT DROP [0:0]\n"
+		":FORWARD DROP [0:0]\n"
+		":OUTPUT %s [0:0]\n"
+		":logaccept - [0:0]\n"
+		":logdrop - [0:0]\n",
+		ipv6_enabled() ? "ACCEPT" : "DROP");
 
 	if (ipv6_enabled()) {
 		fprintf(fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
@@ -2160,21 +2141,9 @@ filter_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 	char *nv, *nvp, *b;
 	char *setting = NULL;
 	char macaccept[32], chain[32];
-	char *ftype, *dtype;
+	char *ftype; //, *dtype;
 	char prefix[32], tmp[100], *wan_proto, *wan_ipaddr;
 	int i;
-#ifndef RTCONFIG_PARENTALCTRL
-	char *fftype;
-#ifdef RTCONFIG_OLD_PARENTALCTRL
-	int num;
-	char parental_ctrl_timematch[128];
-	char parental_ctrl_nv_date[128];
-	char parental_ctrl_nv_time[128];
-	char parental_ctrl_enable_status[128];
-#else
-	char *mac;
-#endif	/* RTCONFIG_OLD_PARENTALCTRL */
-#endif
 #ifdef RTCONFIG_IPV6
 	FILE *fp_ipv6 = NULL;
 	int n;
@@ -2188,7 +2157,7 @@ filter_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 #endif
 //2008.09 magic}
 	char *wanx_if, *wanx_ip;
-#ifdef RTCONFIG_DUALWAN
+#if defined(RTCONFIG_DUALWAN) || defined(RTCONFIG_USB_MODEM)
 	int unit = get_wan_unit(wan_if);
 #endif
 
@@ -2215,10 +2184,9 @@ filter_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 	    ":FORWARD ACCEPT [0:0]\n"
 	    ":OUTPUT ACCEPT [0:0]\n"
 	    ":FUPNP - [0:0]\n"
+	    ":SECURITY - [0:0]\n"
 #ifdef RTCONFIG_PARENTALCTRL
 	    ":PControls - [0:0]\n"
-#else
-	    ":MACS - [0:0]\n"
 #endif
 	    ":logaccept - [0:0]\n"
 	    ":logdrop - [0:0]\n");
@@ -2231,8 +2199,6 @@ filter_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 		    ":OUTPUT ACCEPT [0:0]\n"
 #ifdef RTCONFIG_PARENTALCTRL
 		    ":PControls - [0:0]\n"
-#else
-		    ":MACS - [0:0]\n"
 #endif
 		    ":logaccept - [0:0]\n"
 		    ":logdrop - [0:0]\n",
@@ -2241,10 +2207,6 @@ filter_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 #endif
 
 	strcpy(macaccept, "");
-
-#ifdef RTCONFIG_OLD_PARENTALCTRL
-	parental_ctrl();
-#endif	/* RTCONFIG_OLD_PARENTALCTRL */
 
 #ifdef RTCONFIG_PARENTALCTRL
 	if(nvram_get_int("MULTIFILTER_ALL") != 0 && count_pc_rules() > 0){
@@ -2255,138 +2217,67 @@ TRACE_PT("writing Parental Control\n");
 		if (ipv6_enabled())
 			config_daytime_string(fp_ipv6, logaccept, logdrop);
 #endif
-		dtype = logdrop;
+//		dtype = logdrop;
 		ftype = logaccept;
 
 		strcpy(macaccept, "PControls");
 	}
+#endif
+
+#ifdef RTCONFIG_RESTRICT_GUI
+	char word[PATH_MAX], *next_word;
+
+#if 0
+	if(nvram_get_int("fw_restrict_gui") && strlen(nvram_safe_get("fw_restrict_gui_mac"))){
+		foreach_60(word, nvram_safe_get("fw_restrict_gui_mac"), next_word){
+			fprintf(fp, "-A INPUT -i %s -m mac --mac-source %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j ACCEPT\n",
+					lan_if, word, lan_ip, nvram_safe_get("https_lanport"));
+		}
+		fprintf(fp, "-A INPUT -i %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+				lan_if, lan_ip, nvram_safe_get("https_lanport"));
+	}
 #else
-	// FILTER from LAN to WAN Source MAC
-	if (!nvram_match("macfilter_enable_x", "0"))
-	{
-		// LAN/WAN filter
-
-		if (nvram_match("macfilter_enable_x", "2"))
-		{
-			dtype = logaccept;
-			ftype = logdrop;
-			fftype = logdrop;
-		}
-		else
-		{
-			dtype = logdrop;
-			ftype = logaccept;
-
-			strcpy(macaccept, "MACS");
-			fftype = macaccept;
+	if(nvram_get_int("fw_restrict_gui")){
+		foreach(word, nvram_safe_get("wl_ifnames"), next_word){
+			eval("ebtables", "-t", "broute", "-D", "BROUTING", "-i", word, "-j", "mark", "--mark-set", BIT_RES_GUI, "--mark-target", "ACCEPT");
+			eval("ebtables", "-t", "broute", "-A", "BROUTING", "-i", word, "-j", "mark", "--mark-set", BIT_RES_GUI, "--mark-target", "ACCEPT");
 		}
 
-#ifdef RTCONFIG_OLD_PARENTALCTRL
-		num = nvram_get_int("macfilter_num_x");
-
-		for(i = 0; i < num; ++i)
-		{
-			snprintf(parental_ctrl_nv_date, sizeof(parental_ctrl_nv_date),
-						"macfilter_date_x%d", i);
-			snprintf(parental_ctrl_nv_time, sizeof(parental_ctrl_nv_time),
-						"macfilter_time_x%d", i);
-			snprintf(parental_ctrl_enable_status,
-						sizeof(parental_ctrl_enable_status),
-						"macfilter_enable_status_x%d", i);
-			if(!nvram_match(parental_ctrl_nv_date, "0000000") &&
-				nvram_match(parental_ctrl_enable_status, "1")){
-				timematch_conv(parental_ctrl_timematch,
-									parental_ctrl_nv_date, parental_ctrl_nv_time);
-				fprintf(fp, "-A INPUT -i %s %s -m mac --mac-source %s -j %s\n", lan_if, parental_ctrl_timematch, nvram_get_by_seq("macfilter_list_x", i), ftype);
-				fprintf(fp, "-A FORWARD -i %s %s -m mac --mac-source %s -j %s\n", lan_if, parental_ctrl_timematch, nvram_get_by_seq("macfilter_list_x", i), fftype);
-			}
-		}
-#else	/* RTCONFIG_OLD_PARENTALCTRL */
-		nv = nvp = strdup(nvram_safe_get("macfilter_rulelist"));
-
-		if(nv) {
-			while((b = strsep(&nvp, "<")) != NULL) {
-				if((vstrsep(b, ">", &mac) != 1)) continue;
-				if(strlen(mac)==0) continue;
-
-				fprintf(fp, "-A INPUT -i %s -m mac --mac-source %s -j %s\n", lan_if, mac, ftype);
-				fprintf(fp, "-A FORWARD -i %s -m mac --mac-source %s -j %s\n", lan_if, mac, fftype);
-			}
-			free(nv);
-		}
-#endif
+		fprintf(fp, "-A INPUT -i %s -m mark --mark %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+				lan_if, BIT_RES_GUI, lan_ip, nvram_safe_get("https_lanport"));
 	}
 #endif
+#endif
 
-	if (!nvram_match("fw_enable_x", "1"))
-	{
-#ifndef RTCONFIG_PARENTALCTRL
-		if (nvram_match("macfilter_enable_x", "1"))
-		{
-			/* Filter known SPI state */
-			fprintf(fp, "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,lan_if, logdrop);
+	if (nvram_match("fw_enable_x", "1")) {
+		/* Drop ICMP before ESTABLISHED state */
+		if (!nvram_get_int("misc_ping_x")) {
 #ifdef RTCONFIG_IPV6
-			if (ipv6_enabled())
-			fprintf(fp_ipv6, "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,lan_if, logdrop);
-#endif
-		}
-#endif
-	}
-	else
-	{
-		if (!nvram_match("misc_ping_x", "0"))
-			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
-#ifdef RTCONFIG_IPV6
-		else if (get_ipv6_service() == IPV6_6IN4)
-		{
 			/* accept ICMP requests from the remote tunnel endpoint */
-			ip = nvram_safe_get("ipv6_tun_v4end");
-			if (*ip && strcmp(ip, "0.0.0.0") != 0)
-				fprintf(fp, "-A INPUT -p icmp -s %s -j %s\n", ip, logaccept);
-		}
+			ip = (get_ipv6_service() == IPV6_6IN4) ?
+				nvram_safe_get("ipv6_tun_v4end") : NULL;
+			if (ip && *ip && inet_addr_(ip) != INADDR_ANY)
+				fprintf(fp, "-A INPUT -i %s ! -s %s -p icmp --icmp-type 8 -j %s\n", wan_if, ip, logdrop);
+			else
 #endif
-		else
-			fprintf(fp, "-A INPUT -p icmp -j %s\n", logdrop);
-#ifndef RTCONFIG_PARENTALCTRL
-		if (nvram_match("macfilter_enable_x", "1"))
-		{
-			/* Filter known SPI state */
-			fprintf(fp, "-A INPUT -m state --state INVALID -j %s\n"
-			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
-			  "-A INPUT -i lo -m state --state NEW -j %s\n"
-			  "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,logdrop, logaccept, "ACCEPT", lan_if, logdrop);
-#ifdef RTCONFIG_IPV6
-			if (ipv6_enabled())
-			fprintf(fp_ipv6, "-A INPUT -m rt --rt-type 0 -j %s\n"
-			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
-			  "-A INPUT -i lo -m state --state NEW -j %s\n"
-			  "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,logdrop, logaccept, "ACCEPT", lan_if, logdrop);
-#endif
-		}
-		else
-#endif
-		{
-			/* Filter known SPI state */
-			fprintf(fp, "-A INPUT -m state --state INVALID -j %s\n"
-			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
-			  "-A INPUT -i lo -m state --state NEW -j %s\n"
-			  "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,logdrop, logaccept, "ACCEPT", lan_if, "ACCEPT");
-#ifdef RTCONFIG_IPV6
-			if (ipv6_enabled())
-			fprintf(fp_ipv6, "-A INPUT -m rt --rt-type 0 -j %s\n"
-			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
-			  "-A INPUT -i lo -m state --state NEW -j %s\n"
-			  "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,logdrop, logaccept, "ACCEPT", lan_if, "ACCEPT");
-#endif
+			fprintf(fp, "-A INPUT -i %s -p icmp --icmp-type 8 -j %s\n", wan_if, logdrop);
 		}
 
-// oleg patch ~
+		/* Filter known SPI state */
+		fprintf(fp, "-A INPUT -m state --state INVALID -j %s\n"
+			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
+			  "-A INPUT -i lo -m state --state NEW -j %s\n"
+			  "-A INPUT -i %s -m state --state NEW -j %s\n"
+			,logdrop, logaccept, "ACCEPT", lan_if, "ACCEPT");
+#ifdef RTCONFIG_IPV6
+		if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A INPUT -m rt --rt-type 0 -j %s\n"
+			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
+			  "-A INPUT -i lo -m state --state NEW -j %s\n"
+			  "-A INPUT -i %s -m state --state NEW -j %s\n"
+			,logdrop, logaccept, "ACCEPT", lan_if, "ACCEPT");
+#endif
+
 		/* Pass multicast */
 		if (nvram_match("mr_enable_x", "1") || nvram_invmatch("udpxy_enable_x", "0")) {
 			fprintf(fp, "-A INPUT -p 2 -d 224.0.0.0/4 -j %s\n", logaccept);
@@ -2399,7 +2290,7 @@ TRACE_PT("writing Parental Control\n");
 		 */
 		if (!strcmp(wan_proto, "dhcp") || !strcmp(wan_proto, "bigpond") ||
 		    !strcmp(wan_ipaddr, "0.0.0.0") ||
-		    nvram_match(strcat_r(prefix, "dhcpenable_x", tmp), "1"))
+		    nvram_get_int(strcat_r(prefix, "dhcpenable_x", tmp)))
 		{
 			fprintf(fp, "-A INPUT -p udp --sport 67 --dport 68 -j %s\n", logaccept);
 		}
@@ -2446,6 +2337,19 @@ TRACE_PT("writing Parental Control\n");
 			}
 		}
 #endif
+
+		/* Pass ICMP */
+		if (!nvram_get_int("misc_ping_x")) {
+#ifdef RTCONFIG_IPV6
+			/* accept ICMP requests from the remote tunnel endpoint */
+			ip = (get_ipv6_service() == IPV6_6IN4) ?
+				nvram_safe_get("ipv6_tun_v4end") : NULL;
+			if (ip && *ip && inet_addr_(ip) != INADDR_ANY)
+				fprintf(fp, "-A INPUT -s %s -p icmp --icmp-type 8 -j %s\n", ip, logaccept);
+#endif
+			fprintf(fp, "-A INPUT -p icmp ! --icmp-type 8 -j %s\n", logaccept);
+		} else
+			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
 
 		if (!nvram_match("misc_lpr_x", "0"))
 		{
@@ -2513,42 +2417,45 @@ TRACE_PT("writing Parental Control\n");
 	}
 #endif
 
-// oleg patch ~
 	/* Pass multicast */
 	if (nvram_match("mr_enable_x", "1"))
-	{
 		fprintf(fp, "-A FORWARD -p udp -d 224.0.0.0/4 -j ACCEPT\n");
-#ifndef RTCONFIG_PARENTALCTRL
-		if (strlen(macaccept)>0)
-			fprintf(fp, "-A %s -p udp -d 224.0.0.0/4 -j ACCEPT\n", macaccept);
-#endif
-	}
 
 	/* Clamp TCP MSS to PMTU of WAN interface before accepting RELATED packets */
-	if (!strcmp(wan_proto, "pptp") || !strcmp(wan_proto, "pppoe") || !strcmp(wan_proto, "l2tp"))
-	{
-		fprintf(fp, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
-		if (strlen(macaccept)>0)
-			fprintf(fp, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
-#ifdef RTCONFIG_IPV6
-		switch (get_ipv6_service()) {
-		case IPV6_6IN4:
-		case IPV6_6TO4:
-		case IPV6_6RD:
-			fprintf(fp_ipv6, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
-			if (strlen(macaccept)>0)
-			fprintf(fp_ipv6, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
-			break;
-		}
+	if (
+#if defined(RTCONFIG_USB_MODEM)
+	    dualwan_unit__usbif(unit) ||
 #endif
+	    strcmp(wan_proto, "pppoe") == 0 ||
+	    strcmp(wan_proto, "pptp") == 0 ||
+	    strcmp(wan_proto, "l2tp") == 0) {
+		fprintf(fp, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
+		if (*macaccept)
+			fprintf(fp, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
 	}
+#ifdef RTCONFIG_IPV6
+	switch (get_ipv6_service()) {
+	case IPV6_NATIVE_DHCP:
+	case IPV6_MANUAL:
+		if (
+#if defined(RTCONFIG_USB_MODEM)
+		    dualwan_unit__nonusbif(unit) &&
+#endif
+		    !nvram_match("ipv6_ifdev", "ppp"))
+			break;
+		/* fall through */
+	case IPV6_6IN4:
+	case IPV6_6TO4:
+	case IPV6_6RD:
+		fprintf(fp_ipv6, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
+		if (*macaccept)
+			fprintf(fp_ipv6, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
+		break;
+	}
+#endif
 
 // ~ oleg patch
 	fprintf(fp, "-A FORWARD -m state --state ESTABLISHED,RELATED -j %s\n", logaccept);
-#ifndef RTCONFIG_PARENTALCTRL
-	if (strlen(macaccept)>0)
-		fprintf(fp, "-A %s -m state --state ESTABLISHED,RELATED -j %s\n", macaccept, logaccept);
-#endif
 // ~ oleg patch
 	/* Filter out invalid WAN->WAN connections */
 	fprintf(fp, "-A FORWARD -o %s ! -i %s -j %s\n", wan_if, lan_if, logdrop);
@@ -2598,16 +2505,6 @@ TRACE_PT("writing Parental Control\n");
 	if (ipv6_enabled())
 	fprintf(fp_ipv6, "-A FORWARD -i %s -o %s -j %s\n", lan_if, lan_if, logaccept);
 #endif
-#ifndef RTCONFIG_PARENTALCTRL
-	if (strlen(macaccept)>0)
-	{
-		fprintf(fp, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, lan_if, logaccept);
-#ifdef RTCONFIG_IPV6
-		if (ipv6_enabled())
-		fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, lan_if, logaccept);
-#endif
-	}
-#endif
 
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
@@ -2622,11 +2519,6 @@ TRACE_PT("writing Parental Control\n");
 #endif
 
 #ifdef RTCONFIG_IPV6
-	// RFC-4890, sec. 4.4.1
-	const int allowed_local_icmpv6[] =
-		{ 130, 131, 132, 133, 134, 135, 136,
-		  141, 142, 143,
-		  148, 149, 151, 152, 153 };
 	if (ipv6_enabled())
 	{
 #if 0
@@ -2692,39 +2584,9 @@ TRACE_PT("writing Parental Control\n");
 	}
 #endif
 
-	/* Clamp TCP MSS to PMTU of WAN interface */
-/* oleg patch mark off
-	if ( nvram_match("wan_proto", "pppoe"))
-	{
-		fprintf(fp, "-I FORWARD -p tcp --tcp-flags SYN,RST SYN -m tcpmss --mss %d: -j TCPMSS "
-			  "--set-mss %d\n", nvram_get_int("wan_pppoe_mtu")-39, nvram_get_int("wan_pppoe_mtu")-40);
-
-		if (strlen(macaccept)>0)
-			fprintf(fp, "-A %s -p tcp --tcp-flags SYN,RST SYN -m tcpmss --mss %d: -j TCPMSS "
-			  "--set-mss %d\n", macaccept, nvram_get_int("wan_pppoe_mtu")-39, nvram_get_int("wan_pppoe_mtu")-40);
-	}
-	if (nvram_match("wan_proto", "pptp"))
-	{
-		fprintf(fp, "-A FORWARD -p tcp --syn -j TCPMSS --clamp-mss-to-pmtu\n");
-		if (strlen(macaccept)>0)
-			fprintf(fp, "-A %s -p tcp --syn -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
- 	}
-*/
-#if 0
-	//if (nvram_match("fw_enable_x", "1"))
-	if ( nvram_match("fw_enable_x", "1") && nvram_match("misc_ping_x", "0") )	// ham 0902 //2008.09 magic
-		fprintf(fp, "-A FORWARD -i %s -p icmp -j DROP\n", wan_if);
-#endif
-	if (nvram_match("fw_enable_x", "1") && !nvram_match("fw_dos_x", "0"))	// oleg patch
-	{
-		// DoS attacks
-		// sync-flood protection
-		fprintf(fp, "-A FORWARD -i %s -p tcp --syn -m limit --limit 1/s -j %s\n", wan_if, logaccept);
-		// furtive port scanner
-		fprintf(fp, "-A FORWARD -i %s -p tcp --tcp-flags SYN,ACK,FIN,RST RST -m limit --limit 1/s -j %s\n", wan_if, logaccept);
-		// ping of death
-		fprintf(fp, "-A FORWARD -i %s -p icmp --icmp-type echo-request -m limit --limit 1/s -j %s\n", wan_if, logaccept);
-	}
+	/* DoS protection */
+	if (nvram_get_int("fw_enable_x") && nvram_get_int("fw_dos_x"))
+		fprintf(fp, "-A FORWARD -i %s -j %s\n", wan_if, "SECURITY");
 
 	// FILTER from LAN to WAN
 	// Rules for MAC Filter and LAN to WAN Filter
@@ -2732,11 +2594,9 @@ TRACE_PT("writing Parental Control\n");
 #ifdef RTCONFIG_PARENTALCTRL
 	if(nvram_get_int("MULTIFILTER_ALL") != 0 && count_pc_rules() > 0)
 		strcpy(chain, "PControls");
-#else
-	if (nvram_match("macfilter_enable_x", "1"))
-		strcpy(chain, "MACS");
+	else
 #endif
-	else strcpy(chain, "FORWARD");
+	strcpy(chain, "FORWARD");
 
 	if (nvram_match("fw_lw_enable_x", "1"))
 	{
@@ -2825,27 +2685,14 @@ TRACE_PT("writing Parental Control\n");
 		fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", chain, lan_if, wan6face, dtype);
 #endif
 	}
-#ifndef RTCONFIG_PARENTALCTRL
-	else if (nvram_match("macfilter_enable_x", "1"))
-	{
-	 	fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", lan_if, wan_if, logdrop);
-	 	fprintf(fp, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, wan_if, logaccept);
-#ifdef RTCONFIG_IPV6
-		if (ipv6_enabled() && *wan6face)
-		{
-	 		fprintf(fp_ipv6, "-A FORWARD -i %s -o %s -j %s\n", lan_if, wan6face, logdrop);
-	 		fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, wan6face, logaccept);
-		}
-#endif
-	}
-#else
+
+#ifdef RTCONFIG_PARENTALCTRL
 	// MAC address in list and in time period -> ACCEPT.
 	fprintf(fp, "-A PControls -j %s\n", logaccept);
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
 		fprintf(fp_ipv6, "-A PControls -j %s\n", logaccept);
 #endif
-
 #endif
 
 	// Block VPN traffic
@@ -2867,19 +2714,19 @@ TRACE_PT("writing Parental Control\n");
 	{
 		char wanlan_timematch[128];
 		char ptr[32], *icmplist;
-		char *dtype, *ftype;
+		char /**dtype,*/ *ftype;
 		int apply;
 
 		apply = timematch_conv(wanlan_timematch, "filter_wl_date_x", "filter_wl_time_x");
 
 		if (nvram_match("filter_wl_default_x", "DROP"))
 		{
-			dtype = logdrop;
+//			dtype = logdrop;
 			ftype = logaccept;
 		}
 		else
 		{
-			dtype = logaccept;
+//			dtype = logaccept;
 			ftype = logdrop;
 		}
 
@@ -2922,58 +2769,11 @@ TRACE_PT("writing Parental Control\n");
 		// fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", wan_if, lan_if, dtype);
 	}
 
-TRACE_PT("writing vts_enable_x\n");
-
-#if 0
-/* Drop forward and upnp rules, conntrack module is used now
-	if (is_nat_enabled() && nvram_match("vts_enable_x", "1"))
-	{
-		char *proto, *port, *lport, *dstip, *desc, *protono;
-		char dstports[256];
-
-		nvp = nv = strdup(nvram_safe_get("vts_rulelist"));
-		while (nv && (b = strsep(&nvp, "<")) != NULL) {
-			char *portv, *portp, *c;
-
-			if ((vstrsep(b, ">", &desc, &port, &dstip, &lport, &proto) != 5))
-				continue;
-
-			// Handle port1,port2,port3 format
-			portp = portv = strdup(port);
-			while (portv && (c = strsep(&portp, ",")) != NULL) {
-				if (lport && *lport)
-					snprintf(dstports, sizeof(dstports), "%s", lport);
-				else
-					snprintf(dstports, sizeof(dstports), "%s", c);
-
-				if (strcmp(proto, "TCP") == 0 || strcmp(proto, "BOTH") == 0)
-					fprintf(fp, "-A FORWARD -p tcp -m tcp -d %s --dport %s -j %s\n", dstip, dstports, logaccept);
-				if (strcmp(proto, "UDP") == 0 || strcmp(proto, "BOTH") == 0)
-					fprintf(fp, "-A FORWARD -p udp -m udp -d %s --dport %s -j %s\n", dstip, dstports, logaccept);
-				// Handle raw protocol in port field, no val1:val2 allowed
-				if (strcmp(proto, "OTHER") == 0) {
-					protono = strsep(&c, ":");
-					fprintf(fp, "-A FORWARD -p %s -d %s -j %s\n", protono, dstip, logaccept);
-				}
-			}
-			free(portv);
-		}
-		free(nv);
-	}
-//*/
-#endif
-
 TRACE_PT("write porttrigger\n");
 
+	/* Trigger port setting */
 	if (is_nat_enabled() && nvram_match("autofw_enable_x", "1"))
 		write_porttrigger(fp, wan_if, 0);
-
-#if 0
-/* Drop forward and upnp rules, conntrack module is used now
-	if (is_nat_enabled())
-		write_upnp_filter(fp, wan_if);
-//*/
-#endif
 
 #if 0
 	if (is_nat_enabled() && !nvram_match("sp_battle_ips", "0"))
@@ -3001,6 +2801,25 @@ TRACE_PT("write wl filter\n");
 			nvram_match("filter_wl_default_x", "DROP") ? logdrop : logaccept);
 #endif
 	}
+
+	/* SECURITY chain */
+	/* Skip DMZ */
+	if ((dstip = nvram_safe_get("dmz_ip")) && *dstip && inet_addr_(dstip))
+		fprintf(fp, "-A SECURITY -d %s -j %s\n", dstip, "RETURN");
+	/* Sync-flood protection */
+	fprintf(fp, "-A SECURITY -p tcp --syn -m limit --limit 1/s -j %s\n", "RETURN");
+	fprintf(fp, "-A SECURITY -p tcp --syn -j %s\n", logdrop);
+	/* Furtive port scanner */
+	fprintf(fp, "-A SECURITY -p tcp --tcp-flags SYN,ACK,FIN,RST RST -m limit --limit 1/s -j %s\n", "RETURN");
+	fprintf(fp, "-A SECURITY -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j %s\n", logdrop);
+	/* UDP flooding */
+//	fprintf(fp, "-A SECURITY -p udp -m limit --limit 5/s -j %s\n", "RETURN");
+//	fprintf(fp, "-A SECURITY -p udp -j %s\n", logdrop);
+	/* Ping of death */
+	fprintf(fp, "-A SECURITY -p icmp --icmp-type 8 -m limit --limit 1/s -j %s\n", "RETURN");
+	fprintf(fp, "-A SECURITY -p icmp --icmp-type 8 -j %s\n", logdrop);
+	/* Skip the rest */
+	fprintf(fp, "-A SECURITY -j RETURN\n");
 
 	// logaccept chain
 	fprintf(fp, "-A logaccept -m state --state NEW -j LOG --log-prefix \"ACCEPT \" "
@@ -3145,21 +2964,9 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 	char *nv, *nvp, *b;
 	char *setting;
 	char macaccept[32], chain[32];
-	char *ftype, *dtype;
+	char *ftype; //, *dtype;
 	char *wan_proto;
 	int i;
-#ifndef RTCONFIG_PARENTALCTRL
-	char *fftype;
-#ifdef RTCONFIG_OLD_PARENTALCTRL
-	int num;
-	char parental_ctrl_timematch[128];
-	char parental_ctrl_nv_date[128];
-	char parental_ctrl_nv_time[128];
-	char parental_ctrl_enable_status[128];
-#else
-	char *mac;
-#endif	/* RTCONFIG_OLD_PARENTALCTRL */
-#endif
 //2008.09 magic{
 #ifdef WEBSTRFILTER
 	char timef[256], timef2[256], *filterstr;
@@ -3190,10 +2997,9 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 	    ":FORWARD ACCEPT [0:0]\n"
 	    ":OUTPUT ACCEPT [0:0]\n"
 	    ":FUPNP - [0:0]\n"
+	    ":SECURITY - [0:0]\n"
 #ifdef RTCONFIG_PARENTALCTRL
 	    ":PControls - [0:0]\n"
-#else
-	    ":MACS - [0:0]\n"
 #endif
 	    ":logaccept - [0:0]\n"
 	    ":logdrop - [0:0]\n");
@@ -3206,8 +3012,6 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 		    ":OUTPUT ACCEPT [0:0]\n"
 #ifdef RTCONFIG_PARENTALCTRL
 		    ":PControls - [0:0]\n"
-#else
-		    ":MACS - [0:0]\n"
 #endif
 		    ":logaccept - [0:0]\n"
 		    ":logdrop - [0:0]\n",
@@ -3216,10 +3020,6 @@ filter_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 #endif
 
 	strcpy(macaccept, "");
-
-#ifdef RTCONFIG_OLD_PARENTALCTRL
-	parental_ctrl();
-#endif	/* RTCONFIG_OLD_PARENTALCTRL */
 
 #ifdef RTCONFIG_PARENTALCTRL
 	if(nvram_get_int("MULTIFILTER_ALL") != 0 && count_pc_rules() > 0){
@@ -3231,136 +3031,74 @@ TRACE_PT("writing Parental Control\n");
 			config_daytime_string(fp_ipv6, logaccept, logdrop);
 #endif
 
-		dtype = logdrop;
+//		dtype = logdrop;
 		ftype = logaccept;
 
 		strcpy(macaccept, "PControls");
 	}
+#endif
+
+#ifdef RTCONFIG_RESTRICT_GUI
+	char word[PATH_MAX], *next_word;
+
+#if 0
+	if(nvram_get_int("fw_restrict_gui") && strlen(nvram_safe_get("fw_restrict_gui_mac"))){
+		foreach_60(word, nvram_safe_get("fw_restrict_gui_mac"), next_word){
+			fprintf(fp, "-A INPUT -i %s -m mac --mac-source %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j ACCEPT\n",
+					lan_if, word, lan_ip, nvram_safe_get("https_lanport"));
+		}
+		fprintf(fp, "-A INPUT -i %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+				lan_if, lan_ip, nvram_safe_get("https_lanport"));
+	}
 #else
-	// FILTER from LAN to WAN Source MAC
-	if (!nvram_match("macfilter_enable_x", "0"))
-	{
-		// LAN/WAN filter
-
-		if (nvram_match("macfilter_enable_x", "2"))
-		{
-			dtype = logaccept;
-			ftype = logdrop;
-			fftype = logdrop;
-		}
-		else
-		{
-			dtype = logdrop;
-			ftype = logaccept;
-
-			strcpy(macaccept, "MACS");
-			fftype = macaccept;
+	if(nvram_get_int("fw_restrict_gui")){
+		foreach(word, nvram_safe_get("wl_ifnames"), next_word){
+			eval("ebtables", "-t", "broute", "-D", "BROUTING", "-i", word, "-j", "mark", "--mark-set", BIT_RES_GUI, "--mark-target", "ACCEPT");
+			eval("ebtables", "-t", "broute", "-A", "BROUTING", "-i", word, "-j", "mark", "--mark-set", BIT_RES_GUI, "--mark-target", "ACCEPT");
 		}
 
-#ifdef RTCONFIG_OLD_PARENTALCTRL
-		num = nvram_get_int("macfilter_num_x");
-
-		for(i = 0; i < num; ++i)
-		{
-			snprintf(parental_ctrl_nv_date, sizeof(parental_ctrl_nv_date),
-						"macfilter_date_x%d", i);
-			snprintf(parental_ctrl_nv_time, sizeof(parental_ctrl_nv_time),
-						"macfilter_time_x%d", i);
-			snprintf(parental_ctrl_enable_status,
-						sizeof(parental_ctrl_enable_status),
-						"macfilter_enable_status_x%d", i);
-			if(!nvram_match(parental_ctrl_nv_date, "0000000") &&
-				nvram_match(parental_ctrl_enable_status, "1")){
-				timematch_conv(parental_ctrl_timematch,
-									parental_ctrl_nv_date, parental_ctrl_nv_time);
-				fprintf(fp, "-A INPUT -i %s %s -m mac --mac-source %s -j %s\n", lan_if, parental_ctrl_timematch, nvram_get_by_seq("macfilter_list_x", i), ftype);
-				fprintf(fp, "-A FORWARD -i %s %s -m mac --mac-source %s -j %s\n", lan_if, parental_ctrl_timematch, nvram_get_by_seq("macfilter_list_x", i), fftype);
-			}
-		}
-#else	/* RTCONFIG_OLD_PARENTALCTRL */
-		nv = nvp = strdup(nvram_safe_get("macfilter_rulelist"));
-
-		if(nv) {
-			while((b = strsep(&nvp, "<")) != NULL) {
-				if((vstrsep(b, ">", &mac) != 1)) continue;
-				if(strlen(mac)==0) continue;
-
-				fprintf(fp, "-A INPUT -i %s -m mac --mac-source %s -j %s\n", lan_if, mac, ftype);
-				fprintf(fp, "-A FORWARD -i %s -m mac --mac-source %s -j %s\n", lan_if, mac, fftype);
-			}
-			free(nv);
-		}
-#endif
+		fprintf(fp, "-A INPUT -i %s -m mark --mark %s -d %s -p tcp -m multiport --dport 23,80,%s,9999 -j DROP\n",
+				lan_if, BIT_RES_GUI, lan_ip, nvram_safe_get("https_lanport"));
 	}
 #endif
+#endif
 
-	if (!nvram_match("fw_enable_x", "1"))
-	{
-#ifndef RTCONFIG_PARENTALCTRL
-		if (nvram_match("macfilter_enable_x", "1"))
-		{
-			/* Filter known SPI state */
-			fprintf(fp, "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,lan_if, logdrop);
+	if (nvram_match("fw_enable_x", "1")) {
+		/* Drop ICMP before ESTABLISHED state */
+		if (nvram_get_int("misc_ping_x") == 0) {
 #ifdef RTCONFIG_IPV6
-			if (ipv6_enabled())
-			fprintf(fp_ipv6, "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,lan_if, logdrop);
-#endif
-		}
-#endif
-	}
-	else
-	{
-		if (!nvram_match("misc_ping_x", "0"))
-			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
-#ifdef RTCONFIG_IPV6
-		else if (get_ipv6_service() == IPV6_6IN4)
-		{
 			/* accept ICMP requests from the remote tunnel endpoint */
-			ip = nvram_safe_get("ipv6_tun_v4end");
-			if (*ip && strcmp(ip, "0.0.0.0") != 0)
-				fprintf(fp, "-A INPUT -p icmp -s %s -j %s\n", ip, logaccept);
-		}
+			ip = (get_ipv6_service() == IPV6_6IN4) ?
+				nvram_safe_get("ipv6_tun_v4end") : NULL;
 #endif
-		else
-			fprintf(fp, "-A INPUT -p icmp -j %s\n", logdrop);
-#ifndef RTCONFIG_PARENTALCTRL
-		if (nvram_match("macfilter_enable_x", "1"))
-		{
-			/* Filter known SPI state */
-			fprintf(fp, "-A INPUT -m state --state INVALID -j %s\n"
-			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
-			  "-A INPUT -i lo -m state --state NEW -j %s\n"
-			  "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,logdrop, logaccept, "ACCEPT", lan_if, logdrop);
+			for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
+				snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+				if (nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
+					continue;
+				wan_if = get_wan_ifname(unit);
 #ifdef RTCONFIG_IPV6
-			if (ipv6_enabled())
-			fprintf(fp_ipv6, "-A INPUT -m rt --rt-type 0 -j %s\n"
-			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
-			  "-A INPUT -i lo -m state --state NEW -j %s\n"
-			  "-A INPUT -i %s -m state --state NEW -j %s\n"
-			,logdrop, logaccept, "ACCEPT", lan_if, logdrop);
+				if (ip && *ip && inet_addr_(ip) != INADDR_ANY)
+					fprintf(fp, "-A INPUT -i %s ! -s %s -p icmp --icmp-type 8 -j %s\n", wan_if, ip, logdrop);
+				else
 #endif
+				fprintf(fp, "-A INPUT -i %s -p icmp --icmp-type 8 -j %s\n", wan_if, logdrop);
+			}
 		}
-		else
-#endif
-		{
-			/* Filter known SPI state */
-			fprintf(fp, "-A INPUT -m state --state INVALID -j %s\n"
+
+		/* Filter known SPI state */
+		fprintf(fp, "-A INPUT -m state --state INVALID -j %s\n"
 			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
 			  "-A INPUT -i lo -m state --state NEW -j %s\n"
 			  "-A INPUT -i %s -m state --state NEW -j %s\n"
 			,logdrop, logaccept, "ACCEPT", lan_if, "ACCEPT");
 #ifdef RTCONFIG_IPV6
-			if (ipv6_enabled())
-			fprintf(fp_ipv6, "-A INPUT -m rt --rt-type 0 -j %s\n"
+		if (ipv6_enabled())
+		fprintf(fp_ipv6, "-A INPUT -m rt --rt-type 0 -j %s\n"
 			  "-A INPUT -m state --state RELATED,ESTABLISHED -j %s\n"
 			  "-A INPUT -i lo -m state --state NEW -j %s\n"
 			  "-A INPUT -i %s -m state --state NEW -j %s\n"
 			,logdrop, logaccept, "ACCEPT", lan_if, "ACCEPT");
 #endif
-		}
 
 		/* Pass multicast */
 		if (nvram_match("mr_enable_x", "1") || nvram_invmatch("udpxy_enable_x", "0")) {
@@ -3429,6 +3167,19 @@ TRACE_PT("writing Parental Control\n");
 			}
 		}
 #endif
+
+		/* Pass ICMP */
+		if (!nvram_get_int("misc_ping_x")) {
+#ifdef RTCONFIG_IPV6
+			/* accept ICMP requests from the remote tunnel endpoint */
+			ip = (get_ipv6_service() == IPV6_6IN4) ?
+				nvram_safe_get("ipv6_tun_v4end") : NULL;
+			if (ip && *ip && inet_addr_(ip) != INADDR_ANY)
+				fprintf(fp, "-A INPUT -s %s -p icmp --icmp-type 8 -j %s\n", ip, logaccept);
+#endif
+			fprintf(fp, "-A INPUT -p icmp ! --icmp-type 8 -j %s\n", logaccept);
+		} else
+			fprintf(fp, "-A INPUT -p icmp -j %s\n", logaccept);
 
 		if (!nvram_match("misc_lpr_x", "0"))
 		{
@@ -3505,51 +3256,53 @@ TRACE_PT("writing Parental Control\n");
 	}
 #endif
 
-// oleg patch ~
 	/* Pass multicast */
 	if (nvram_match("mr_enable_x", "1"))
-	{
 		fprintf(fp, "-A FORWARD -p udp -d 224.0.0.0/4 -j ACCEPT\n");
-#ifndef RTCONFIG_PARENTALCTRL
-		if (strlen(macaccept)>0)
-			fprintf(fp, "-A %s -p udp -d 224.0.0.0/4 -j ACCEPT\n", macaccept);
-#endif
-	}
 
 	/* Clamp TCP MSS to PMTU of WAN interface before accepting RELATED packets */
-	for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
+	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-		if(nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
+		if (nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
 			continue;
 
 		wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
-
-		if(!strcmp(wan_proto, "pppoe") || !strcmp(wan_proto, "pptp") || !strcmp(wan_proto, "l2tp")){
-			fprintf(fp, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
-			if(strlen(macaccept) > 0)
-				fprintf(fp, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
-#ifdef RTCONFIG_IPV6
-			switch(get_ipv6_service()){
-				case IPV6_6IN4:
-				case IPV6_6TO4:
-				case IPV6_6RD:
-					fprintf(fp_ipv6, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
-					if(strlen(macaccept) > 0)
-						fprintf(fp_ipv6, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
-					break;
-			}
+		if (
+#if defined(RTCONFIG_USB_MODEM)
+		    dualwan_unit__usbif(unit) ||
 #endif
-
-			break; // set one time.
+		    strcmp(wan_proto, "pppoe") == 0 ||
+		    strcmp(wan_proto, "pptp") == 0 ||
+		    strcmp(wan_proto, "l2tp") == 0) {
+			fprintf(fp, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
+			if (*macaccept)
+				fprintf(fp, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
+			break; // set one time
 		}
 	}
+#ifdef RTCONFIG_IPV6
+	switch (get_ipv6_service()) {
+	case IPV6_NATIVE_DHCP:
+	case IPV6_MANUAL:
+		if (
+#if defined(RTCONFIG_USB_MODEM)
+		    dualwan_unit__nonusbif(wan_primary_ifunit()) &&
+#endif
+		    !nvram_match("ipv6_ifdev", "ppp"))
+			break;
+		/* fall through */
+	case IPV6_6IN4:
+	case IPV6_6TO4:
+	case IPV6_6RD:
+		fprintf(fp_ipv6, "-A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
+		if (*macaccept)
+			fprintf(fp_ipv6, "-A %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
+		break;
+	}
+#endif
 
 // ~ oleg patch
 	fprintf(fp, "-A FORWARD -m state --state ESTABLISHED,RELATED -j %s\n", logaccept);
-#ifndef RTCONFIG_PARENTALCTRL
-	if (strlen(macaccept)>0)
-		fprintf(fp, "-A %s -m state --state ESTABLISHED,RELATED -j %s\n", macaccept, logaccept);
-#endif
 
 	for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
@@ -3602,16 +3355,6 @@ TRACE_PT("writing Parental Control\n");
 	if (ipv6_enabled())
 	fprintf(fp_ipv6, "-A FORWARD -i %s -o %s -j %s\n", lan_if, lan_if, logaccept);
 #endif
-#ifndef RTCONFIG_PARENTALCTRL
-	if (strlen(macaccept)>0)
-	{
-		fprintf(fp, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, lan_if, logaccept);
-#ifdef RTCONFIG_IPV6
-		if (ipv6_enabled())
-		fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, lan_if, logaccept);
-#endif
-	}
-#endif
 
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
@@ -3626,11 +3369,6 @@ TRACE_PT("writing Parental Control\n");
 #endif
 
 #ifdef RTCONFIG_IPV6
-	// RFC-4890, sec. 4.4.1
-	const int allowed_local_icmpv6[] =
-		{ 130, 131, 132, 133, 134, 135, 136,
-		  141, 142, 143,
-		  148, 149, 151, 152, 153 };
 	if (ipv6_enabled())
 	{
 #if 0
@@ -3698,46 +3436,15 @@ TRACE_PT("writing Parental Control\n");
 	}
 #endif
 
-	/* Clamp TCP MSS to PMTU of WAN interface */
-/* oleg patch mark off
-	if ( nvram_match("wan_proto", "pppoe"))
-	{
-		fprintf(fp, "-I FORWARD -p tcp --tcp-flags SYN,RST SYN -m tcpmss --mss %d: -j TCPMSS "
-			  "--set-mss %d\n", nvram_get_int("wan_pppoe_mtu")-39, nvram_get_int("wan_pppoe_mtu")-40);
-
-		if (strlen(macaccept)>0)
-			fprintf(fp, "-A %s -p tcp --tcp-flags SYN,RST SYN -m tcpmss --mss %d: -j TCPMSS "
-			  "--set-mss %d\n", macaccept, nvram_get_int("wan_pppoe_mtu")-39, nvram_get_int("wan_pppoe_mtu")-40);
-	}
-	if (nvram_match("wan_proto", "pptp"))
-	{
-		fprintf(fp, "-A FORWARD -p tcp --syn -j TCPMSS --clamp-mss-to-pmtu\n");
-		if (strlen(macaccept)>0)
-			fprintf(fp, "-A %s -p tcp --syn -j TCPMSS --clamp-mss-to-pmtu\n", macaccept);
- 	}
-*/
-
-	for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
+	/* DoS protection */
+	if (nvram_get_int("fw_enable_x") && nvram_get_int("fw_dos_x"))
+	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-		if(nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
+		if (nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
 			continue;
-
 		wan_if = get_wan_ifname(unit);
-#if 0
-		//if (nvram_match("fw_enable_x", "1"))
-		if ( nvram_match("fw_enable_x", "1") && nvram_match("misc_ping_x", "0") )	// ham 0902 //2008.09 magic
-			fprintf(fp, "-A FORWARD -i %s -p icmp -j DROP\n", wan_if);
-#endif
-		if (nvram_match("fw_enable_x", "1") && !nvram_match("fw_dos_x", "0"))	// oleg patch
-		{
-			// DoS attacks
-			// sync-flood protection
-			fprintf(fp, "-A FORWARD -i %s -p tcp --syn -m limit --limit 1/s -j %s\n", wan_if, logaccept);
-			// furtive port scanner
-			fprintf(fp, "-A FORWARD -i %s -p tcp --tcp-flags SYN,ACK,FIN,RST RST -m limit --limit 1/s -j %s\n", wan_if, logaccept);
-			// ping of death
-			fprintf(fp, "-A FORWARD -i %s -p icmp --icmp-type echo-request -m limit --limit 1/s -j %s\n", wan_if, logaccept);
-		}
+
+		fprintf(fp, "-A FORWARD -i %s -j %s", wan_if, "SECURITY");
 	}
 
 	// FILTER from LAN to WAN
@@ -3746,11 +3453,9 @@ TRACE_PT("writing Parental Control\n");
 #ifdef RTCONFIG_PARENTALCTRL
 	if(nvram_get_int("MULTIFILTER_ALL") != 0 && count_pc_rules() > 0)
 		strcpy(chain, "PControls");
-#else
-	if (nvram_match("macfilter_enable_x", "1"))
-		strcpy(chain, "MACS");
+	else
 #endif
-	else strcpy(chain, "FORWARD");
+	strcpy(chain, "FORWARD");
 
 	if (nvram_match("fw_lw_enable_x", "1"))
 	{
@@ -3883,36 +3588,14 @@ TRACE_PT("writing Parental Control\n");
 			fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", chain, lan_if, wan6face, dtype);
 #endif
 	}
-#ifndef RTCONFIG_PARENTALCTRL
-	else if (nvram_match("macfilter_enable_x", "1"))
-	{
-		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
-			snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-			if(nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
-				continue;
 
-			wan_if = get_wan_ifname(unit);
-
-	 		fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", lan_if, wan_if, logdrop);
-	 		fprintf(fp, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, wan_if, logaccept);
-		}
-
-#ifdef RTCONFIG_IPV6
-		if (ipv6_enabled() && *wan6face)
-		{
- 			fprintf(fp_ipv6, "-A FORWARD -i %s -o %s -j %s\n", lan_if, wan6face, logdrop);
- 			fprintf(fp_ipv6, "-A %s -i %s -o %s -j %s\n", macaccept, lan_if, wan6face, logaccept);
-		}
-#endif
-	}
-#else
+#ifdef RTCONFIG_PARENTALCTRL
 	// MAC address in list and in time period -> ACCEPT.
 	fprintf(fp, "-A PControls -j %s\n", logaccept);
 #ifdef RTCONFIG_IPV6
 	if (ipv6_enabled())
 		fprintf(fp_ipv6, "-A PControls -j %s\n", logaccept);
 #endif
-
 #endif
 
 	// Block VPN traffic
@@ -3942,19 +3625,19 @@ TRACE_PT("writing Parental Control\n");
 	{
 		char wanlan_timematch[128];
 		char ptr[32], *icmplist;
-		char *dtype, *ftype;
+		char /**dtype,*/ *ftype;
 		int apply;
 
 		apply = timematch_conv(wanlan_timematch, "filter_wl_date_x", "filter_wl_time_x");
 
 		if (nvram_match("filter_wl_default_x", "DROP"))
 		{
-			dtype = logdrop;
+//			dtype = logdrop;
 			ftype = logaccept;
 		}
 		else
 		{
-			dtype = logaccept;
+//			dtype = logaccept;
 			ftype = logdrop;
 		}
 
@@ -4015,66 +3698,17 @@ TRACE_PT("writing Parental Control\n");
 		// fprintf(fp, "-A FORWARD -i %s -o %s -j %s\n", wan_if, lan_if, dtype);
 	}
 
-TRACE_PT("writing vts_enable_x\n");
-
-#if 0
-/* Drop forward and upnp rules, conntrack module is used now
-	// add back vts forward rules
-	if (is_nat_enabled() && nvram_match("vts_enable_x", "1"))
-	{
-		char *proto, *port, *lport, *dstip, *desc, *protono;
-		char dstports[256];
-
-		nvp = nv = strdup(nvram_safe_get("vts_rulelist"));
-		while (nv && (b = strsep(&nvp, "<")) != NULL) {
-			char *portv, *portp, *c;
-
-			if ((vstrsep(b, ">", &desc, &port, &dstip, &lport, &proto) != 5))
-				continue;
-
-			// Handle port1,port2,port3 format
-			portp = portv = strdup(port);
-			while (portv && (c = strsep(&portp, ",")) != NULL) {
-				if (lport && *lport)
-					snprintf(dstports, sizeof(dstports), "%s", lport);
-				else
-					snprintf(dstports, sizeof(dstports), "%s", c);
-
-				if (strcmp(proto, "TCP") == 0 || strcmp(proto, "BOTH") == 0)
-					fprintf(fp, "-A FORWARD -p tcp -m tcp -d %s --dport %s -j %s\n", dstip, dstports, logaccept);
-				if (strcmp(proto, "UDP") == 0 || strcmp(proto, "BOTH") == 0)
-					fprintf(fp, "-A FORWARD -p udp -m udp -d %s --dport %s -j %s\n", dstip, dstports, logaccept);
-				// Handle raw protocol in port field, no val1:val2 allowed
-				if (strcmp(proto, "OTHER") == 0) {
-					protono = strsep(&c, ":");
-					fprintf(fp, "-A FORWARD -p %s -d %s -j %s\n", protono, dstip, logaccept);
-				}
-			}
-			free(portv);
-		}
-		free(nv);
-	}
-//*/
-#endif
-
 TRACE_PT("write porttrigger\n");
 
-	if (is_nat_enabled())
+	/* Trigger port setting */
+	if (is_nat_enabled() && nvram_match("autofw_enable_x", "1"))
 	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 		if (nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
 			continue;
 
 		wan_if = get_wan_ifname(unit);
-
-		if (nvram_match("autofw_enable_x", "1"))
-			write_porttrigger(fp, wan_if, 0);
-
-#if 0
-/* Drop forward and upnp rules, conntrack module is used now
-		write_upnp_filter(fp, wan_if);
-//*/
-#endif
+		write_porttrigger(fp, wan_if, 0);
 	}
 
 #if 0
@@ -4110,6 +3744,25 @@ TRACE_PT("write wl filter\n");
 			fprintf(fp_ipv6, "-A FORWARD -i %s -o %s -j %s\n", wan6face, lan_if, nvram_match("filter_wl_default_x", "DROP") ? logdrop : logaccept);
 #endif
 	}
+
+	/* SECURITY chain */
+	/* Skip DMZ */
+	if ((dstip = nvram_safe_get("dmz_ip")) && *dstip && inet_addr_(dstip))
+		fprintf(fp, "-A SECURITY -d %s -j %s\n", dstip, "RETURN");
+	/* Sync-flood protection */
+	fprintf(fp, "-A SECURITY -p tcp --syn -m limit --limit 1/s -j %s\n", "RETURN");
+	fprintf(fp, "-A SECURITY -p tcp --syn -j %s\n", logdrop);
+	/* Furtive port scanner */
+	fprintf(fp, "-A SECURITY -p tcp --tcp-flags SYN,ACK,FIN,RST RST -m limit --limit 1/s -j %s\n", "RETURN");
+	fprintf(fp, "-A SECURITY -p tcp --tcp-flags SYN,ACK,FIN,RST RST -j %s\n", logdrop);
+	/* UDP flooding */
+//	fprintf(fp, "-A SECURITY -p udp -m limit --limit 5/s -j %s\n", "RETURN");
+//	fprintf(fp, "-A SECURITY -p udp -j %s\n", logdrop);
+	/* Ping of death */
+	fprintf(fp, "-A SECURITY -p icmp --icmp-type 8 -m limit --limit 1/s -j %s\n", "RETURN");
+	fprintf(fp, "-A SECURITY -p icmp --icmp-type 8 -j %s\n", logdrop);
+	/* Skip the rest */
+	fprintf(fp, "-A SECURITY -j RETURN\n");
 
 	// logaccept chain
 	fprintf(fp, "-A logaccept -m state --state NEW -j LOG --log-prefix \"ACCEPT \" "
@@ -4245,13 +3898,6 @@ TRACE_PT("write url filter\n");
 #endif // RTCONFIG_DUALWAN
 
 void
-write_upnp_filter(FILE *fp, char *wan_if)
-{
-	// TODO: should we log upnp forwarded packets
-	fprintf(fp, "-A FORWARD -i %s -j FUPNP\n", wan_if);
-}
-
-void
 write_porttrigger(FILE *fp, char *wan_if, int is_nat)
 {
 	char *nv, *nvp, *b;
@@ -4289,7 +3935,7 @@ write_porttrigger(FILE *fp, char *wan_if, int is_nat)
 void
 mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 {
-	if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") == 0){
+	if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") != 1){
 			add_iQosRules(wan_if);
 	}
 	else {
@@ -4336,10 +3982,7 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 	if(nvram_match("ctf_disable", "0")) {
 #ifdef RTCONFIG_BWDPI
 		/* DPI engine */
-		if(nvram_get_int("bwdpi_test") == 1){
-			// do nothing
-		}
-		else if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") == 1){
+		if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") == 1){
 				eval("iptables", "-t", "mangle", "-N", "BWDPI_FILTER");
 				eval("iptables", "-t", "mangle", "-F", "BWDPI_FILTER");
 				eval("iptables", "-t", "mangle", "-A", "BWDPI_FILTER", "-i", wan_if, "-p", "udp", "--sport", "68", "--dport", "67", "-j", "DROP");
@@ -4361,7 +4004,7 @@ mangle_setting(char *wan_if, char *wan_ip, char *lan_if, char *lan_ip, char *log
 			ip2class(lan_ip, nvram_safe_get("lan_netmask"), lan_class);
 			eval("iptables", "-t", "mangle", "-A", "FORWARD",
 			     "-o", lan_if, "-s", lan_class, "-d", lan_class,
-			     "-m", "state", "--state", "NEW", "-j", "MARK", "--set-mark", "0x01/0x7");
+			     "-j", "MARK", "--set-mark", "0x01/0x7");
 		}
 #ifdef RTCONFIG_BCMARM
 		/* mark STUN connection*/
@@ -4394,7 +4037,7 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 	char tmp[100], prefix[] = "wanXXXXXXXXXX_";
 	char *wan_if;
 
-	if(nvram_get_int("qos_enable") == 1){
+	if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") != 1){
 		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
 			snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 			if(nvram_get_int(strcat_r(prefix, "state_t", tmp)) != WAN_STATE_CONNECTED)
@@ -4451,10 +4094,7 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 	if(nvram_match("ctf_disable", "0")) {
 #ifdef RTCONFIG_BWDPI
 		/* DPI engine */
-		if(nvram_get_int("bwdpi_test") == 1){
-			// do nothing
-		}
-		else if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") == 1){
+		if(nvram_get_int("qos_enable") == 1 && nvram_get_int("qos_type") == 1){
 				eval("iptables", "-t", "mangle", "-N", "BWDPI_FILTER");
 				eval("iptables", "-t", "mangle", "-F", "BWDPI_FILTER");
 
@@ -4481,7 +4121,7 @@ mangle_setting2(char *lan_if, char *lan_ip, char *logaccept, char *logdrop)
 			ip2class(lan_ip, nvram_safe_get("lan_netmask"), lan_class);
 			eval("iptables", "-t", "mangle", "-A", "FORWARD",
 			     "-o", lan_if, "-s", lan_class, "-d", lan_class,
-			     "-m", "state", "--state", "NEW", "-j", "MARK", "--set-mark", "0x01/0x7");
+			     "-j", "MARK", "--set-mark", "0x01/0x7");
 		}
 #ifdef RTCONFIG_BCMARM
 		/* mark STUN connection*/

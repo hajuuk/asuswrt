@@ -50,6 +50,7 @@
 #include "tivo_beacon.h"
 #include "upnpglobalvars.h"
 #include "log.h"
+#include "utils.h"
 
 /* OpenAndConfHTTPSocket() :
  * setup the socket used to handle incoming HTTP connections. */
@@ -176,7 +177,7 @@ sendBeaconMessage(int fd, struct sockaddr_in * client, int len, int broadcast)
  *
  * Returns true if this was a broadcast beacon msg
  */
-int
+static int
 rcvBeaconMessage(char *beacon)
 {
 	char *tivoConnect = NULL;
@@ -220,7 +221,7 @@ rcvBeaconMessage(char *beacon)
 	char buf[32];
 	static time_t lastSummary = 0;
 
-	current = time(NULL);
+	current = uptime();
 	for( b = topBeacon; b != NULL; b = b->next )
 	{
 		if( strcasecmp(machine, b->machine) == 0 ||

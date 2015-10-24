@@ -17,7 +17,7 @@ endif
 
 include $(SRCBASE)/.config
 
-ifeq ($(RTN11P),y)
+ifeq ($(RTN11P)$(RTN300),y)
 CFLAGS += -DBAND_2G_ONLY
 endif
 
@@ -25,7 +25,7 @@ ifeq ($(RTN14U),y)
 CFLAGS += -DBAND_2G_ONLY
 endif
 
-ifeq ($(RTN14U)$(RTAC52U)$(RTAC51U)$(RTN11P)$(RTN54U)$(RTAC1200HP)$(RTN56UB1)$(RTAC54U),y)
+ifeq ($(RTN14U)$(RTAC52U)$(RTAC51U)$(RTN11P)$(RTN300)$(RTN54U)$(RTAC1200HP)$(RTN56UB1)$(RTAC54U),y)
 CFLAGS += -DRA_ESW
 endif
 
@@ -39,6 +39,11 @@ endif
 
 ifeq ($(RTCONFIG_BWDPI),y)
 CFLAGS += -I$(TOP)/bwdpi/ -I$(TOP)/sqlite -I$(TOP)/bwdpi_sqlite
+endif
+
+ifeq ($(RTCONFIG_TRAFFIC_CONTROL),y)
+CFLAGS += -I$(TOP)/traffic_control
+CFLAGS += -I$(TOP)/sqlite
 endif
 
 OBJS = httpd.o cgi.o ej.o 
@@ -77,6 +82,8 @@ OBJS += $(if $(wildcard pwenc.c), pwenc.o, prebuild/pwenc.o)
 endif
 
 LIBS = -L$(TOP)/nvram${BCMEX} -lnvram -L$(TOP)/shared -lshared
+# for ceil()
+LIBS += -lm
 
 ifeq ($(RTCONFIG_PUSH_EMAIL),y)
 LIBS += -L$(TOP)/openssl -lcrypto -lssl -ldl
@@ -112,6 +119,9 @@ OBJS += openvpn_options.o
 LIBS += -L$(TOP)/openssl -lssl -lcrypto -ldl
 endif
 
+CFLAGS += -I$(TOP)/json-c
+LIBS += -L$(TOP)/json-c/.libs -ljson-c
+
 ifeq ($(RTCONFIG_BWDPI),y)
 LIBS += -L$(TOP)/bwdpi -lbwdpi
 LIBS += -L$(TOP)/bwdpi_sqlite -lbwdpi_sql
@@ -119,9 +129,18 @@ LIBS += -L$(TOP)/sqlite/.libs -lsqlite3
 LIBS += -lpthread
 endif
 
+ifeq ($(RTCONFIG_TRAFFIC_CONTROL),y)
+LIBS += -L$(TOP)/traffic_control -ltraffic_control
+LIBS += -L$(TOP)/sqlite/.libs -lsqlite3
+endif
+
 ifeq ($(RTCONFIG_GEOIP),y)
 CFLAGS += -I$(TOP)/GeoIP-1.6.2/libGeoIP
 LIBS += -L$(TOP)/GeoIP-1.6.2/libGeoIP/.libs -lGeoIP
+endif
+
+ifeq ($(RTCONFIG_QCA),y)
+LIBS += -lpthread -ldl
 endif
 
 export CFLAGS

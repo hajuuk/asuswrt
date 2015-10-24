@@ -18,7 +18,7 @@
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
 <script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
 <script language="JavaScript" type="text/javascript" src="/validator.js"></script>
-<script type="text/javascript" src="/jquery.js"></script>
+<script type="text/javascript" src="/js/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <style>
 #pull_arrow{
@@ -66,7 +66,7 @@
 }
 </style>
 <script>
-var $j = jQuery.noConflict();
+
 
 var Tor_redir_list_str = '<% nvram_get("Tor_redir_list"); %>';
 var Tor_enable = '<% nvram_get("Tor_enable"); %>';
@@ -207,7 +207,7 @@ function showLANMacList(){
 		htmlCode += '</div></a><!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
 	}
 
-	$("TORMACList").innerHTML = htmlCode;
+	document.getElementById("TORMACList").innerHTML = htmlCode;
 }
 
 var over_var = 0;

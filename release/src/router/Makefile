@@ -33,7 +33,6 @@ ifeq ($(RTCONFIG_BCMARM),y)
 export CFLAGS += -DMFP
 export CFLAGS += -D__CONFIG_MFP__
 export CLFAGS += -DWLWNM
-export MFP_TEST=1
 endif
 endif
 export CFLAGS += $(EXTRACFLAGS)
@@ -67,11 +66,21 @@ export BCMSRC=src-rt-7.14.94.x/src
 export OLD_SRC=$(SRCBASE)/../../src
 export  BUILD_MFG := 0
 export  EX7 := _794
+else ifeq ($(RTCONFIG_BCM_7114),y)
+export BCMSRC=src-rt-7.14.114.x/src
+export OLD_SRC=$(SRCBASE)/../../src
+export  BUILD_MFG := 0
+export  EX7 := _7114
 else ifeq ($(RTCONFIG_BCM10),y)
 export BCMSRC=src-rt-10.10.22.x/src
 export OLD_SRC=$(SRCBASE)/../../src
 export  BUILD_MFG := 0
 export  EX7 := _10
+else ifeq ($(RTCONFIG_BCM9),y)
+export BCMSRC=src-rt-9.x/src
+export OLD_SRC=$(SRCBASE)/../../src
+export  BUILD_MFG := 0
+export  EX7 := _9
 else
 WLAN_ComponentsInUse := bcmwifi clm ppr olpc
 export BCMSRC=src-rt-6.x.4708
@@ -111,6 +120,7 @@ ifeq ($(RTCONFIG_BCM10),y)
 WLAN_ComponentsInUse += keymgmt iocv dump phymods/cmn phymods/n phymods/lcn phymods/ac phymods/lcn40 phymods/ht
 endif
 
+
 include ../../$(SRCBASE)/makefiles/WLAN_Common.mk
 endif
 
@@ -126,10 +136,14 @@ export KDIR KERNEL_HEADER_DIR
 ifeq ($(RTCONFIG_DHDAP),y)
 export CONFIG_DHDAP=y
 export CFLAGS += -D__CONFIG_DHDAP__
+ifeq ($(RTCONFIG_BCM_7114),y)
+export SRCBASE_DHD := $(SRCBASE)/../dhd/src
+export SRCBASE_SYS := $(SRCBASE_DHD)
+include Makefile.fw
+else	# 7114
 export DHDAP_USE_SEPARATE_CHECKOUTS := 1
 export SRCBASE_DHD := $(SRCBASE)/../../dhd/src
 export SRCBASE_FW  := $(SRCBASE)/../../43602/src
-
 PCIEFD_TARGETS_LIST	:= 43602a1-roml
 ifeq ($(WLTEST),1)
 PCIEFD_TARGET_NAME	:= pcie-ag-splitrx-fdap-mbss-mfgtest-seqcmds-phydbg-txbf-pktctx-amsdutx-ampduretry-chkd2hdma
@@ -141,6 +155,15 @@ PCIEFD_EMBED_HEADER_TEMPLATE := $(SRCBASE_DHD)/shared/rtecdc_router.h.in
 PCIEFD_EMBED_HEADER	:= $(SRCBASE_DHD)/shared/rtecdc_router.h
 obj-pciefd		:= $(patsubst %,%-obj,$(PCIEFD_TARGETS_LIST))
 install-pciefd		:= $(patsubst %,%-install,$(PCIEFD_TARGETS_LIST))
+endif	#  7114
+endif
+
+ifeq ($(RTCONFIG_WLEXE),y)
+ifeq ($(RTCONFIG_BCM9),y)
+export SRCBASE_SYS := $(SRCBASE)/../sys/src
+export CONFIG_WLEXE
+export RWL ?= 0
+endif
 endif
 
 ifeq ($(RTCONFIG_GMAC3),y)
@@ -190,6 +213,10 @@ ifeq ($(RTCONFIG_DEBUG),y)
 export CFLAGS += -g
 endif
 
+ifneq (,$(filter y,$(RTCONFIG_SFP) $(RTCONFIG_4M_SFP)))
+export  MUVER := _1.4
+endif
+
 #
 #
 #
@@ -199,13 +226,25 @@ SEP=echo "\033[41;1m   $@   \033[0m"
 # standard packages
 #
 obj-$(RTCONFIG_QTN) += libqcsapi_client
+obj-$(RTCONFIG_QTN) += qtnimage
 obj-$(RTCONFIG_DMALLOC) += dmalloc
 
-obj-$(RTCONFIG_DHDAP) += pciefd dhd
-obj-$(RTCONFIG_DHDAP) += dhd
+obj-$(RTCONFIG_DHDAP) += dhd $(if $(RTCONFIG_BCM7),pciefd)
+obj-$(RTCONFIG_BCM_7114) += dhd_monitor
 obj-y += busybox
 obj-y += shared
 obj-y += nvram$(BCMEX)
+obj-$(RTCONFIG_BCMARM) += ctf_arm
+obj-$(RTAC53U) += ctf_5358
+ifneq ($(RTCONFIG_RALINK)$(RTCONFIG_QCA),y)
+obj-y += ctf
+endif
+ifeq ($(RTCONFIG_BCMARM),y)
+ifeq ($(RTCONFIG_CFEZ),y)
+obj-y += envram_bin
+endif
+endif
+obj-$(RTCONFIG_DPSTA) += dpsta
 
 ifeq ($(RTCONFIG_RALINK),y)
 #################################################################################
@@ -213,7 +252,7 @@ ifeq ($(RTCONFIG_RALINK),y)
 #################################################################################
 obj-y += wireless_tools
 
-ifeq ($(or $(RTN14U),$(RTAC52U),$(RTAC51U),$(RTN11P),$(RTN54U),$(RTAC1200HP),$(RTN56UB1),$(RTAC54U)),y)
+ifeq ($(or $(RTN14U),$(RTAC52U),$(RTAC51U),$(RTN11P),$(RTN300),$(RTN54U),$(RTAC1200HP),$(RTN56UB1),$(RTAC54U)),y)
 obj-y += reg
 endif
 
@@ -223,7 +262,7 @@ obj-y += rt2880_app
 else	#!ifneq ($(findstring linux-3.x,$(LINUXDIR)),)
 obj-y += ated
 obj-y += flash
-ifeq ($(or $(RTN14U),$(RTAC52U),$(RTAC51U),$(RTN11P),$(RTN54U),$(RTAC1200HP),$(RTN56UB1),$(RTAC54U)),y)
+ifeq ($(or $(RTN14U),$(RTAC52U),$(RTAC51U),$(RTN11P),$(RTN300),$(RTN54U),$(RTAC1200HP),$(RTN56UB1),$(RTAC54U)),y)
 else
 obj-y += hw_nat
 endif
@@ -240,6 +279,14 @@ obj-y += qca-wifi
 #obj-y += qca-art2
 obj-y += qca-hostap
 obj-y += shortcut-fe
+
+ifeq ($(PLC_UTILS),y)
+obj-y += plc-utils
+endif
+
+ifeq ($(ART2),y)
+obj-y += LinuxART2
+endif
 
 ifeq ($(RT4GAC55U),y)
 obj-y += usb-gobi
@@ -260,9 +307,15 @@ obj-y += dsl_drv_tool
 endif
 
 ifneq ($(or $(findstring linux-2.6.36,$(LINUXDIR)),$(findstring linux-3.x,$(LINUXDIR)),$(findstring linux-3.3.x,$(LINUXDIR))),)
+IPTABLES := iptables-1.4.x
+IPTC_LIBDIR := $(TOP)/$(IPTABLES)/libiptc/.libs
+IPTC_LIBS := -lip4tc $(if $(RTCONFIG_IPV6),-lip6tc,) -liptc
 obj-y += iptables-1.4.x
 obj-y += iproute2-3.x
 else
+IPTABLES := iptables
+IPTC_LIBDIR := $(TOP)/$(IPTABLES)
+IPTC_LIBS := -liptc
 obj-y += iptables
 obj-y += iproute2
 endif
@@ -270,12 +323,14 @@ endif
 obj-$(RTCONFIG_BWDPI) += bwdpi
 obj-$(RTCONFIG_BWDPI) += sqlite
 obj-$(RTCONFIG_BWDPI) += bwdpi_sqlite
+obj-$(RTCONFIG_BWDPI) += bwdpi_bin
 obj-$(RTCONFIG_SPEEDTEST) += curl-7.21.7
+obj-$(RTCONFIG_TRAFFIC_CONTROL) += traffic_control
 
 obj-y += rc
 obj-y += rom
 obj-y += others
-obj-y += httpd
+obj-y += httpd json-c
 obj-y += www
 obj-y += bridge
 obj-y += dnsmasq
@@ -303,16 +358,17 @@ else
 #obj-y += et
 obj-y += utils$(BCMEX)$(EX7)
 obj-$(RTCONFIG_EMF) += emf$(BCMEX)$(EX7)
-obj-$(RTCONFIG_EMF) += igs
+obj-$(RTCONFIG_EMF) += igs$(BCMEX)$(EX7)
 ifneq ($(RTCONFIG_BCM_794),y)	# do not build wl/dhd since not ready
 obj-y += wlconf$(BCMEX)$(EX7)
 obj-y += nas$(BCMEX)$(EX7)
 obj-$(RTCONFIG_HSPOT) += hspot_ap$(BCMEX)$(EX7)
 obj-y += eapd$(BCMEX)$(EX7)/linux
 obj-$(RTCONFIG_WPS) += wps$(BCMEX)$(EX7)
+obj-$(RTCONFIG_WLEXE) += wlexe
 endif
 obj-$(CONFIG_LIBBCM) += libbcm
-obj-$(CONFIG_LIBUPNP) += libupnp
+obj-$(CONFIG_LIBUPNP) += libupnp$(BCMEX)$(EX7)
 endif
 
 obj-y += libbcmcrypto
@@ -336,18 +392,26 @@ endif
 obj-$(RTCONFIG_USB_PRINTER) += u2ec
 obj-$(RTCONFIG_USB_PRINTER) += LPRng
 
+ifneq ($(RT4GAC55U),y)
 obj-$(RTCONFIG_USB_MODEM) += sdparm-1.02
 obj-$(RTCONFIG_USB_MODEM) += comgt-0.32
-obj-$(RTCONFIG_USB_MODEM) += uqmi
+obj-$(RTCONFIG_USB_MODEM) += $(if $(RTCONFIG_QCA),,uqmi)
+endif
 
 ifneq ($(or $(findstring linux-2.6.36.x,$(LINUXDIR)),$(findstring linux-2.6.36,$(LINUXDIR)),$(findstring linux-3.x,$(LINUXDIR)),$(findstring linux-3.3.x,$(LINUXDIR))),)
-ifeq ($(or $(RTN65U),$(RTAC55U),$RTAC55UHP)),y)
+ifeq ($(or $(RTN65U),$(RTAC55U),$(RTAC55UHP),$(RTN56UB1)),y)
 obj-$(RTCONFIG_USB_MODEM) += usbmodeswitch-1.2.3
 else
-obj-$(RTCONFIG_USB_MODEM) += usb-modeswitch-2.2.0
+ifneq ($(RT4GAC55U),y)
+obj-$(RTCONFIG_USB_MODEM) += usb-modeswitch-2.2.3
+endif
 endif
 else
+ifeq ($(RTCONFIG_BCMWL6),y)
+obj-$(RTCONFIG_USB_MODEM) += usb-modeswitch-2.2.3
+else
 obj-$(RTCONFIG_USB_MODEM) += usbmodeswitch
+endif
 endif
 
 obj-$(RTCONFIG_USB_BECEEM) += madwimax-0.1.1 # for Samsung WiMAX
@@ -384,10 +448,8 @@ endif
 
 ifeq ($(RTCONFIG_IPV6),y)
 export RTCONFIG_IPV6 := y
-IPTABLES_IPV6_OPT := --enable-ipv6
 else
 RTCONFIG_IPV6 :=
-IPTABLES_IPV6_OPT := --disable-ipv6
 endif
 # install before samba3 for not overwriting some binaries
 obj-$(RTCONFIG_WEBDAV) += samba-3.5.8
@@ -408,14 +470,7 @@ obj-$(RTCONFIG_TUXERA_HFS) += tuxera
 obj-$(RTCONFIG_KERNEL_HFSPLUS) += diskdev_cmds-332.14
 endif
 obj-$(RTCONFIG_EBTABLES) += ebtables
-ifeq ($(RTCONFIG_WIDEDHCP6),y)
-obj-$(RTCONFIG_IPV6) += libdaemon
-obj-$(RTCONFIG_IPV6) += radvd
-obj-$(RTCONFIG_IPV6) += dhcpv6
-obj-$(RTCONFIG_IPV6) += ndisc6
-else
 obj-$(RTCONFIG_IPV6) += odhcp6c
-endif
 #obj-$(RTCONFIG_IPV6) += ecmh
 
 obj-$(RTCONFIG_MEDIA_SERVER) += zlib
@@ -449,6 +504,14 @@ obj-$(RTCONFIG_DROPBOXCLIENT) += dropbox_client
 obj-$(RTCONFIG_FTPCLIENT) += libiconv-1.14
 obj-$(RTCONFIG_FTPCLIENT) += ftpclient
 obj-$(RTCONFIG_SAMBACLIENT) += sambaclient
+obj-$(RTCONFIG_USBCLIENT) += usbclient
+
+#aaews,asusnatnl related
+obj-$(RTCONFIG_TUNNEL) += wb
+obj-$(RTCONFIG_TUNNEL) += aaews
+obj-$(RTCONFIG_TUNNEL) += mastiff
+obj-$(RTCONFIG_TUNNEL) += asusnatnl
+
 
 #For timemachine
 obj-$(RTCONFIG_TIMEMACHINE) += openssl
@@ -463,6 +526,7 @@ obj-y += expat-2.0.1
 else
 obj-$(RTCONFIG_MEDIA_SERVER) += mDNSResponder
 endif
+obj-$(RTCONFIG_MEDIA_SERVER) += mDNSResponder
 
 #add for snmpd
 SNMPD_CFLAGS += -D$(BUILD_NAME)
@@ -470,7 +534,7 @@ ifeq ($(BUILD_NAME), $(filter $(BUILD_NAME), RT-N66U RT-AC66U RT-AC68U))
 SNMPD_CFLAGS += -DDUAL_BAND
 endif
 obj-$(RTCONFIG_SNMPD) += openssl
-obj-$(RTCONFIG_BCMWL6) += libnmp
+obj-$(RTCONFIG_SNMPD) += libnmp
 obj-$(RTCONFIG_SNMPD) += net-snmp-5.7.2
 ifeq ($(RTCONFIG_SNMPD),y)
 export MIB_MODULE_PASSPOINT =
@@ -485,9 +549,10 @@ obj-$(RTCONFIG_L2TP) += rp-l2tp
 obj-$(RTCONFIG_PPTP) += accel-pptp
 obj-$(RTCONFIG_EAPOL) += wpa_supplicant
 obj-$(RTCONFIG_HTTPS) += openssl
-obj-$(RTCONFIG_HTTPS) += wget
+obj-$(RTCONFIG_HTTPS) += wget zlib
 obj-$(RTCONFIG_SSH) += dropbear
 #obj-$(RTCONFIG_ZEBRA) += zebra
+obj-$(RTCONFIG_QUAGGA) += quagga
 #	obj-$(RTCONFIG_IPP2P) += ipp2p
 obj-$(RTCONFIG_LZO) += lzo
 obj-$(RTCONFIG_OPENVPN) += openpam
@@ -508,7 +573,8 @@ obj-$(RTCONFIG_WEBDAV) += libexif
 obj-$(RTCONFIG_IXIAEP) += ixia_endpoint$(BCMEX)
 
 # Add for ASUS Components
-obj-y += miniupnpd
+obj-y += miniupnpc
+obj-y += miniupnpd$(MUVER)
 obj-y += igmpproxy
 obj-y += snooper
 ifeq ($(RTCONFIG_BCMWL6),y)
@@ -527,19 +593,24 @@ else
 obj-y += lltd
 endif
 ifeq ($(RTCONFIG_BCMWL6),y)
-ifneq ($(RTCONFIG_BCM10),y)
+#ifneq ($(RTCONFIG_BCM10),y)
 obj-y += acsd$(BCMEX)$(EX7)
-endif
+#endif
 endif
 else
 obj-y += lldt
 endif
+obj-$(RTCONFIG_JFFS2USERICON) += lltdc
+
 obj-$(RTCONFIG_TOAD) += toad
 obj-$(RTCONFIG_BCMBSD) += bsd
 obj-$(RTCONFIG_BCMSSD) += ssd
 obj-y += networkmap
 obj-y += infosvr
 obj-y += ez-ipupdate
+ifneq ($(or $(RTN56U),$(DSLN55U)),y)
+obj-y += phddns
+endif
 
 obj-$(RTCONFIG_STRACE) += strace
 
@@ -559,9 +630,6 @@ obj-$(RTCONFIG_PUSH_EMAIL) += push_log
 
 obj-$(RTCONFIG_NORTON) += norton${BCMEX}
 
-#obj-y += lighttpd-1.4.28
-#obj-$(RTCONFIG_USB_WEBDAV) += lighttpd-1.4.29
-
 obj-$(UBI) += mtd-utils
 obj-$(UBIFS) += mtd-utils
 obj-$(UBIFS) += util-linux lzo zlib
@@ -571,6 +639,7 @@ endif
 obj-$(RTCONFIG_BCMARM) += wl$(BCMEX)$(EX7)
 
 obj-$(RTCONFIG_RTL8365MB) += rtl_bin
+obj-$(RTCONFIG_LACP) += lacp
 
 #obj-y += bonnie
 
@@ -579,7 +648,7 @@ obj-y += asm1042
 endif
 
 ifeq ($(RTCONFIG_BCMARM),y)
-obj-prelibs =$(filter nvram$(BCMEX) libbcmcrypto shared netconf libupnp libz libbcm pciefd, $(obj-y))
+obj-prelibs =$(filter nvram$(BCMEX) libbcmcrypto shared netconf libupnp$(BCMEX)$(EX7) libz libbcm pciefd, $(obj-y))
 obj-postlibs := $(filter-out $(obj-prelibs), $(obj-y))
 endif
 
@@ -595,6 +664,8 @@ obj-$(RTCONFIG_BONDING) += ifenslave
 
 obj-$(RTCONFIG_GEOIP) += GeoIP-1.6.2
 
+obj-$(RTCONFIG_TRANSMISSION) += Transmission curl-7.21.7 libevent-2.0.21
+
 ifeq ($(RTCONFIG_TOR),y)
 obj-y += openssl
 obj-y += zlib
@@ -606,17 +677,17 @@ endif
 obj-$(RTCONFIG_TR069) += openssl
 obj-$(RTCONFIG_TR069) += tr069
 
+obj-$(RTCONFIG_CLOUDCHECK) += cloudcheck
+
+obj-$(RTCONFIG_GETREALIP) += ministun
+
+
+ifneq ($(find lighttpd-1.4.29, $(obj-y)),"")
+released_dir += APP-IPK
+endif
+
 obj-clean := $(foreach obj, $(obj-y) $(obj-n) $(obj-), $(obj)-clean)
 obj-install := $(foreach obj,$(obj-y),$(obj)-install)
-
-# Specify iptables path and target for miniupnpd
-ifneq ($(findstring iptables-1.4.x,$(obj-y)),)
-IPTABLESPATH=$(TOP)/iptables-1.4.x
-export IPTABLESPATH
-IPTABLES_TARGET = iptables-1.4.x
-else
-IPTABLES_TARGET = iptables
-endif
 
 ifneq ($(or $(findstring linux-2.6.36.x,$(LINUXDIR)),$(findstring linux-3.x,$(LINUXDIR)),$(findstring linux-3.3.x,$(LINUXDIR))),)
 MKSQUASHFS_TARGET = mksquashfs
@@ -762,7 +833,7 @@ testfind:
 	cd $(TARGETDIR)/lib/modules/* && find -name "*.o" -exec mv -i {} . \; || true
 	cd $(TARGETDIR)/lib/modules/* && find -type d -delete || true
 
-install package: $(obj-install) $(LINUXDIR)/.config gen_target
+install package: $(obj-install) $(LINUXDIR)/.config gen_target gen_gpl_excludes_router
 
 gen_target:
 	@$(SEP)
@@ -1038,10 +1109,15 @@ endif
 ifeq ($(RTCONFIG_ROMCFE),y)
 	-cp $(SRCBASE)/cfe/cfe_`echo $(BUILD_NAME)|tr A-Z a-z`.bin $(TARGETDIR)/rom/cfe
 endif
+ifeq ($(RTCONFIG_ROMATECCODEFIX),y)
+	-cp $(SRCBASE)/router/rom/cfe/`echo $(BUILD_NAME)|tr A-Z a-z`_fixlist.txt $(TARGETDIR)/rom/mac_chklist.txt
+endif
 ifeq ($(RTCONFIG_QTN),y)
 	# install qtn boot-code and firmware
-	install -D qtnimage/topaz-linux.lzma.img $(TARGETDIR)/rom/qtn/topaz-linux.lzma.img
-	install -D qtnimage/u-boot.bin $(TARGETDIR)/rom/qtn/u-boot.bin
+	install -D qtnimage/topaz-linux.lzma.img $(TARGETDIR)/rom/qtn/boot/topaz-linux.lzma.img
+	install -D qtnimage/u-boot.bin $(TARGETDIR)/rom/qtn/boot/u-boot.bin
+	ln -s /rom/qtn/boot/topaz-linux.lzma.img $(TARGETDIR)/rom/qtn/topaz-linux.lzma.img
+	ln -s /rom/qtn/boot/u-boot.bin $(TARGETDIR)/rom/qtn/u-boot.bin
 	install -D qtnimage/router_command.sh $(TARGETDIR)/rom/qtn/router_command.sh
 	install -D qtnimage/qtn_dbg.sh $(TARGETDIR)/rom/qtn/qtn_dbg.sh
 	install -D qtnimage/start-stateless-slave $(TARGETDIR)/rom/qtn/start-stateless-slave
@@ -1052,12 +1128,8 @@ ifeq ($(RTCONFIG_SPEEDTEST),y)
 	install -D curl-7.21.7/src/.libs/curl $(TARGETDIR)/usr/sbin/curl
 	$(STRIP) $(TARGETDIR)/usr/sbin/curl
 endif
+
 ifeq ($(RTCONFIG_BWDPI),y)
-ifeq ($(RTCONFIG_BCM7),y)
-	cp $(TOP)/bwdpi_bin/bwdpi_bcm7/* $(TOP)/bwdpi_bin/
-else
-	cp $(TOP)/bwdpi_bin/bwdpi_bcm6/* $(TOP)/bwdpi_bin/
-endif
 	install -d $(TARGETDIR)/usr/bwdpi/
 	cp -f bwdpi_bin/*.so $(TARGETDIR)/usr/lib/
 	cp -f bwdpi_bin/*.so.0.1 $(TARGETDIR)/usr/lib/
@@ -1072,9 +1144,19 @@ endif
 	install -D bwdpi_bin/ntdasus2014.cert $(TARGETDIR)/usr/bwdpi/ntdasus2014.cert
 	install -D $(shell dirname $(shell which $(CXX)))/../lib/librt.so.0 $(TARGETDIR)/lib/librt.so.0
 endif
+
+ifeq ($(RTCONFIG_BCMARM),y)
+ifeq ($(RTCONFIG_CFEZ),y)
+	install -D envram_bin/envrams $(TARGETDIR)/usr/sbin/envrams
+	install -D envram_bin/envram $(TARGETDIR)/usr/sbin/envram
+endif
+endif
 	@echo ---
 
 	@rm -f $(TARGETDIR)/lib/modules/*/build
+
+gen_gpl_excludes_router:
+	@[ ! -d ../../../buildtools/ ] || ../../../buildtools/gpl_excludes_router.sh $(SRCBASE) "$(obj-y) $(released_dir)"
 
 image:
 ifneq ($(RTCONFIG_BCMARM),y)
@@ -1150,12 +1232,22 @@ ifeq ($(RTCONFIG_BCMARM),y)
 	$(MAKE) compressed-clean
 endif
 ifeq ($(RTCONFIG_DHDAP),y)
+ifeq ($(RTCONFIG_BCM7),y)
 ifneq ($(wildcard $(SRCBASE_FW)/wl/sys),)
 ifeq ($(wildcard /projects/hnd/tools/linux/hndtools-armeabi-2011.09),)
 	# build 43602 src and to match its path
 	sudo mkdir /projects/hnd/tools/linux -p
 	sudo rm -rf /projects/hnd/tools/linux/hndtools-armeabi-2011.09
 	sudo ln -sf $(SRCBASE)/toolchains/hndtools-armeabi-2011.09 /projects/hnd/tools/linux/hndtools-armeabi-2011.09
+endif
+endif
+else ifeq ($(RTCONFIG_BCM_7114),y)
+ifeq ($(wildcard /projects/hnd/tools/linux/hndtools-armeabi-2013.11),)
+	# build pciefd
+	sudo mkdir /projects/hnd/tools/linux/bin -p
+	sudo rm -rf /projects/hnd/tools/linux/hndtools-armeabi-2013.11
+	sudo ln -sf $(SRCBASE)/toolchains/hndtools-armeabi-2013.11 /projects/hnd/tools/linux/hndtools-armeabi-2013.11
+	sudo ln -sf $(SRCBASE)/toolchains/fwtag.ini /projects/hnd/tools/linux/bin/fwtag.ini
 endif
 endif
 endif
@@ -1202,7 +1294,8 @@ busybox-config:
 
 infosvr: shared nvram${BCMEX}
 
-httpd: shared nvram$(BCMEX) libdisk $(if $(RTCONFIG_HTTPS),mssl) $(if $(RTCONFIG_PUSH_EMAIL),push_log) $(if $(RTCONFIG_BWDPI),bwdpi) $(if $(RTCONFIG_BWDPI),bwdpi_sqlite)
+httpd: shared nvram$(BCMEX) libdisk $(if $(RTCONFIG_HTTPS),mssl) $(if $(RTCONFIG_PUSH_EMAIL),push_log) $(if $(RTCONFIG_BWDPI),bwdpi) $(if $(RTCONFIG_BWDPI),bwdpi_sqlite) json-c
+
 	@$(SEP)
 	@$(MAKE) -C httpd
 
@@ -1227,6 +1320,7 @@ bonnie-install:
 
 bonnie-clean:
 	[ ! -f bonnie/Makefile ] || $(MAKE) -C bonnie clean
+	@rm -f bonnie/Makefile
 
 www-install:
 	@$(MAKE) -C www install INSTALLDIR=$(INSTALLDIR)/www TOMATO_EXPERIMENTAL=$(TOMATO_EXPERIMENTAL)
@@ -1288,8 +1382,8 @@ openssl: openssl/Makefile
 	$(MAKE) -C openssl && $(MAKE) $@-stage
 
 openssl-clean:
-	-@[ ! -f openssl/Makefile ] || $(MAKE) -C openssl clean
-	-@rm -f openssl/Makefile
+	[ ! -f openssl/Makefile ] || $(MAKE) -C openssl clean
+	@rm -f openssl/Makefile
 
 openssl-install: openssl
 	install -D openssl/libcrypto.so.1.0.0 $(INSTALLDIR)/openssl/usr/lib/libcrypto.so.1.0.0
@@ -1387,15 +1481,15 @@ dmalloc-configure:
 dmalloc-install: dmalloc
 	install -D $(STAGEDIR)/usr/sbin/dmalloc $(INSTALLDIR)/dmalloc/usr/sbin/dmalloc
 	install -d $(INSTALLDIR)/dmalloc/usr/lib
-	install -D $(STAGEDIR)/usr/lib/*.a $(INSTALLDIR)/dmalloc/usr/lib
-	install -D $(STAGEDIR)/usr/lib/*.so* $(INSTALLDIR)/dmalloc/usr/lib
+	install -D $(STAGEDIR)/usr/lib/libdmalloc*.so* $(INSTALLDIR)/dmalloc/usr/lib
 	$(STRIP) $(INSTALLDIR)/dmalloc/usr/sbin/dmalloc
 	$(STRIP) $(INSTALLDIR)/dmalloc/usr/lib/*.so*
 
 dmalloc-clean:
 	[ ! -f dmalloc/Makefile ] || $(MAKE) -C dmalloc clean
-	-rm -f dmalloc/{conf.h,dmalloc.h,dmalloc.h.2,settings.h,Makefile}
+	@rm -f dmalloc/{conf.h,dmalloc.h,dmalloc.h.2,settings.h,Makefile}
 
+ifeq ($(RTCONFIG_BCM7),y)
 $(obj-pciefd) :
 # Build PCIEFD firmware only if it is not prebuilt
 ifeq ($(RTCONFIG_DHDAP),y)
@@ -1438,9 +1532,11 @@ endif
 pciefd-install :
 	# Nothing to be done here
 	@true
+endif	# BCM7
 
 ifeq ($(RTCONFIG_DHDAP),y)
 dhd:
+	@true
 ifneq ($(wildcard $(SRCBASE_DHD)/dhd/exe),)
 	$(MAKE) TARGET_PREFIX=$(CROSS_COMPILE) -C $(SRCBASE_DHD)/dhd/exe
 endif
@@ -1460,12 +1556,29 @@ ifneq ($(wildcard $(SRCBASE_DHD)/dhd/exe),)
 endif
 endif
 
+.PHONY: dhd_monitor
+
+dhd_monitor: shared nvram$(BCMEX)
+ifeq ($(RTCONFIG_DHDAP),y)
+	+$(MAKE) LINUXDIR=$(LINUXDIR) EXTRA_LDFLAGS=$(EXTRA_LDFLAGS) -C dhd_monitor dhd_monitor
+endif
+
+dhd_monitor-install: dhd_monitor
+ifeq ($(RTCONFIG_DHDAP),y)
+	+$(MAKE) -C dhd_monitor INSTALLDIR=$(INSTALLDIR)/dhd_monitor install
+endif
+
+dhd_monitor-clean:
+ifeq ($(RTCONFIG_DHDAP),y)
+	+$(MAKE) -C dhd_monitor clean
+endif
+
+
 dnsmasq:
 	@$(SEP)
 	@$(MAKE) -C dnsmasq \
 	COPTS="-DHAVE_BROKEN_RTC -DHAVE_LEASEFILE_EXPIRE -DNO_AUTH -DNO_IPSET -DNO_LOOP -DNO_INOTIFY \
 		$(if $(RTCONFIG_IPV6),-DUSE_IPV6,-DNO_IPV6) \
-		$(if $(RTCONFIG_WIDEDHCP6),-DNO_DHCP6,) \
 		$(if $(RTCONFIG_USB_EXTRAS)||$(RTCONFIG_TR069),,-DNO_SCRIPT) \
 		$(if $(RTCONFIG_USB_EXTRAS),,-DNO_TFTP)" \
 	CFLAGS="-Os -ffunction-sections -fdata-sections $(EXTRACFLAGS)" \
@@ -1505,41 +1618,36 @@ endif
 iptables-clean:
 	-@$(MAKE) -C iptables KERNEL_DIR=$(LINUXDIR) clean
 
+iptables-1.4.x/configure:
+	cd iptables-1.4.x && ./autogen.sh
+
+iptables-1.4.x/Makefile: iptables-1.4.x/configure
+	cd iptables-1.4.x && $(CONFIGURE) \
+		--prefix=/usr \
+		--bindir=/usr/sbin \
+		--libdir=/usr/lib \
+		--with-kernel=$(LINUXDIR) \
+		$(if $(RTCONFIG_IPV6),--enable-ipv6,--disable-ipv6) \
+		CFLAGS="-Os $(EXTRACFLAGS) -U CONFIG_NVRAM_SIZE"
+
 iptables-1.4.x: iptables-1.4.x/Makefile
 	@$(SEP)
 	$(MAKE) -C $@ KERNEL_DIR=$(LINUXDIR) COPT_FLAGS="-Os $(EXTRACFLAGS) -U CONFIG_NVRAM_SIZE"
 
-iptables-1.4.x/Makefile: iptables-1.4.x/configure
-	$(MAKE) iptables-1.4.x-configure
-
-iptables-1.4.x/configure:
-	( cd iptables-1.4.x ; ./autogen.sh )
-
-iptables-1.4.x-configure:
-	( cd iptables-1.4.x ; \
-		$(CONFIGURE) \
-		--prefix=/usr \
-		--bindir=/usr/sbin \
-		--libdir=/usr/lib \
-		$(IPTABLES_IPV6_OPT) \
-		--with-kernel=$(LINUXDIR) \
-	)
-
-iptables-1.4.x-install:
+iptables-1.4.x-install: iptables-1.4.x
 	install -D iptables-1.4.x/iptables/.libs/xtables-multi $(INSTALLDIR)/iptables-1.4.x/usr/sbin/xtables-multi
 	cd $(INSTALLDIR)/iptables-1.4.x/usr/sbin && \
 		ln -sf xtables-multi iptables-restore && \
 		ln -sf xtables-multi iptables-save && \
 		ln -sf xtables-multi iptables
 	install -d $(INSTALLDIR)/iptables-1.4.x/usr/lib/xtables
-	install -D iptables-1.4.x/libiptc/.libs/lib*.so $(INSTALLDIR)/iptables-1.4.x/usr/lib/
+	install -D iptables-1.4.x/libiptc/.libs/libiptc.so $(INSTALLDIR)/iptables-1.4.x/usr/lib/libiptc.so
+	install -D iptables-1.4.x/libiptc/.libs/libip4tc.so $(INSTALLDIR)/iptables-1.4.x/usr/lib/libip4tc.so
 	cd $(INSTALLDIR)/iptables-1.4.x/usr/lib && \
-		ln -sf libip4tc.so libip4tc.so.0 && \
-		ln -sf libip4tc.so libip4tc.so.0.0.0 && \
-		ln -sf libip6tc.so libip6tc.so.0 && \
-		ln -sf libip6tc.so libip6tc.so.0.0.0 && \
 		ln -sf libiptc.so  libiptc.so.0 && \
-		ln -sf libiptc.so  libiptc.so.0.0.0
+		ln -sf libiptc.so  libiptc.so.0.0.0 && \
+		ln -sf libip4tc.so libip4tc.so.0 && \
+		ln -sf libip4tc.so libip4tc.so.0.0.0
 	install -D iptables-1.4.x/iptables/.libs/lib*.so $(INSTALLDIR)/iptables-1.4.x/usr/lib/
 	cd $(INSTALLDIR)/iptables-1.4.x/usr/lib && \
 		ln -sf libxtables.so libxtables.so.7 && \
@@ -1550,6 +1658,10 @@ ifeq ($(RTCONFIG_IPV6),y)
 	cd $(INSTALLDIR)/iptables-1.4.x/usr/sbin && \
 		ln -sf xtables-multi ip6tables-restore && \
 		ln -sf xtables-multi ip6tables
+	install -D iptables-1.4.x/libiptc/.libs/libip6tc.so $(INSTALLDIR)/iptables-1.4.x/usr/lib/libip6tc.so
+	cd $(INSTALLDIR)/iptables-1.4.x/usr/lib && \
+		ln -sf libip6tc.so libip6tc.so.0 && \
+		ln -sf libip6tc.so libip6tc.so.0.0.0
 endif
 
 	$(STRIP) $(INSTALLDIR)/iptables-1.4.x/usr/sbin/xtables-multi
@@ -1558,20 +1670,51 @@ endif
 
 iptables-1.4.x-clean:
 	[ ! -f iptables-1.4.x/Makefile ] || $(MAKE) -C iptables-1.4.x KERNEL_DIR=$(LINUXDIR) distclean
+	@rm -f iptables-1.4.x/Makefile
 
-upnp: nvram$(BCMEX) shared iptables
+upnp: nvram$(BCMEX) shared $(IPTABLES)
 
-miniupnpd: $(IPTABLES_TARGET)
+miniupnpd/config.h: shared/version.h
+	cd miniupnpd && ./genconfig.sh --vendorcfg
+
+miniupnpd: $(IPTABLES) miniupnpd/config.h
 	@$(SEP)
-	cp -f ./shared/version.h miniupnpd/.
-	$(MAKE) -C miniupnpd -f Makefile.asus
+	PKG_CONFIG=false ARCH=$(PLATFORM) \
+	$(MAKE) -C $@ -f Makefile.asus \
+	    IPTABLESPATH=$(TOP)/$(IPTABLES) \
+	    EXTRACFLAGS="-Os $(EXTRACFLAGS) -idirafter$(KERNEL_HEADER_DIR) -ffunction-sections -fdata-sections" \
+	    LDFLAGS="$(EXTRALDFLAGS) -ffunction-sections -fdata-sections -Wl,--gc-sections -L$(IPTC_LIBDIR)" \
+	    LDLIBS="-Wl,--as-needed $(IPTC_LIBS)"
 
 miniupnpd-clean:
 	-@$(MAKE) -C miniupnpd -f Makefile.asus clean
+	-@rm miniupnpd/config.h
 
-miniupnpd-install:
-	install -D miniupnpd/miniupnpd $(INSTALLDIR)/miniupnpd/usr/sbin/miniupnpd
-	$(STRIP) $(INSTALLDIR)/miniupnpd/usr/sbin/miniupnpd
+miniupnpd_1.4: $(IPTABLES) shared/version.h
+	@$(SEP)
+	cp -f shared/version.h $@/
+	$(MAKE) -C $@ -f Makefile.asus \
+	    IPTABLESPATH=$(TOP)/$(IPTABLES) \
+	    EXTRACFLAGS="-Os $(EXTRACFLAGS) -ffunction-sections -fdata-sections" \
+	    LDFLAGS="$(EXTRALDFLAGS) -ffunction-sections -fdata-sections -Wl,--gc-sections -L$(IPTC_LIBDIR)" \
+	    LDLIBS="-Wl,--as-needed $(IPTC_LIBS)"
+
+miniupnpd_1.4-clean:
+	-@$(MAKE) -C miniupnpd_1.4 -f Makefile.asus clean
+
+miniupnpd$(MUVER)-install: miniupnpd$(MUVER)
+	install -D miniupnpd$(MUVER)/miniupnpd $(INSTALLDIR)/miniupnpd$(MUVER)/usr/sbin/miniupnpd
+	$(STRIP) $(INSTALLDIR)/miniupnpd$(MUVER)/usr/sbin/miniupnpd
+
+miniupnpc:
+	$(MAKE) -C miniupnpc
+
+miniupnpc-clean:
+	-@$(MAKE) -C miniupnpc clean
+
+miniupnpc-install:
+	install -D miniupnpc/upnpc-static $(INSTALLDIR)/miniupnpc/usr/sbin/miniupnpc
+	$(STRIP) $(INSTALLDIR)/miniupnpc/usr/sbin/miniupnpc
 
 # !!TB
 shared: busybox $(if $(RTCONFIG_QTN),libqcsapi_client) $(if $(RTCONFIG_HTTPS),openssl)
@@ -1754,6 +1897,17 @@ usb-modeswitch-2.2.0-install: usb-modeswitch-2.2.0
 	@mkdir -p $(TARGETDIR)/rom/etc
 	@sed 's/#.*//g;s/[ \t]\+/ /g;s/^[ \t]*//;s/[ \t]*$$//;/^$$/d' < $(TOP)/usb-modeswitch-2.2.0/usb_modeswitch.conf > $(TARGETDIR)/rom/etc/usb_modeswitch.conf
 
+usb-modeswitch-2.2.3: libusb10
+	$(MAKE) -C $@ CC=$(CC) CFLAGS="-Os $(EXTRACFLAGS) \
+		-Wl,-R/lib:/usr/lib:/opt/usr/lib:/usr/local/share -lpthread -ldl\
+		-I$(TOP)/libusb10/libusb -L$(TOP)/libusb10/libusb/.libs -lusb-1.0"
+
+usb-modeswitch-2.2.3-install: usb-modeswitch-2.2.3
+	install -D usb-modeswitch-2.2.3/usb_modeswitch $(INSTALLDIR)/usb-modeswitch-2.2.3/usr/sbin/usb_modeswitch
+	$(STRIP) -s $(INSTALLDIR)/usb-modeswitch-2.2.3/usr/sbin/usb_modeswitch
+	@mkdir -p $(TARGETDIR)/rom/etc
+	@sed 's/#.*//g;s/[ \t]\+/ /g;s/^[ \t]*//;s/[ \t]*$$//;/^$$/d' < $(TOP)/usb-modeswitch-2.2.3/usb_modeswitch.conf > $(TARGETDIR)/rom/etc/usb_modeswitch.conf
+
 libusb-0.1.12/stamp-h1:
 	cd libusb-0.1.12 && CFLAGS="-Os -Wall $(EXTRACFLAGS)" LIBS="-lpthread -ldl" \
 	$(CONFIGURE) --prefix=/usr --disable-build-docs --disable-dependency-tracking
@@ -1812,6 +1966,7 @@ lsof-install:
 
 lsof-clean:
 	( cd lsof ; ./Configure -clean )
+	@rm -f lsof/Makefile
 
 mtd-utils: util-linux lzo zlib
 	$(MAKE) CPPFLAGS="-I$(STAGEDIR)/usr/include" \
@@ -1862,94 +2017,7 @@ util-linux-install: util-linux
 
 util-linux-clean:
 	[ ! -f util-linux/Makefile ] || $(MAKE) -C util-linux distclean
-
-radvd/stamp-h1:
-	cd radvd && CFLAGS="-Os $(EXTRACFLAGS) -ffunction-sections -fdata-sections" \
-	LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections $(EXTRALDFLAGS)" \
-	$(CONFIGURE) --prefix="" --disable-dependency-tracking \
-	DAEMON_CFLAGS="-I$(TOP)/libdaemon" \
-	DAEMON_LIBS="-ldaemon -L$(TOP)/libdaemon/libdaemon/.libs $(EXTRALDFLAGS)"
-	-@$(MAKE) -C radvd clean
-	@touch $@
-
-radvd: libdaemon radvd/stamp-h1
-	make -C $@
-
-radvd-clean:
-	-@ [ ! -f radvd/Makefile ] || $(MAKE) -C radvd distclean
-	@rm -f radvd/stamp-h1
-
-radvd-install: radvd
-	install -D radvd/radvd $(INSTALLDIR)/radvd/usr/sbin/radvd
-	$(STRIP) $(INSTALLDIR)/radvd/usr/sbin/radvd
-
-ndisc6: ndisc6/Makefile
-	$(MAKE) -C $@
-
-ndisc6/Makefile: ndisc6/configure
-	$(MAKE) ndisc6-configure
-
-ndisc6/configure:
-	( cd ndisc6 ; ./autogen.sh )
-
-ndisc6-configure:
-ifeq ($(RTCONFIG_BCMARM),y)
-	( cd ndisc6 ; \
-		CFLAGS="-Os $(EXTRACFLAGS) -ffunction-sections -fdata-sections -I$(SRCBASE)/include -I$(TOP)/shared $(if $(RTCONFIG_HTTPS),-I$(TOP)/openssl/include/openssl)" \
-		LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections $(if $(RTCONFIG_HTTPS),-L$(TOP)/openssl -lcrypto -lssl)" \
-		$(CONFIGURE) --prefix="" --disable-dependency-tracking \
-	)
-else ifeq ($(RTCONFIG_QCA),y)
-	( cd ndisc6 ; \
-		CFLAGS="-Os $(EXTRACFLAGS) -ffunction-sections -fdata-sections -I$(SRCBASE)/include -I$(TOP)/shared $(if $(RTCONFIG_HTTPS),-I$(TOP)/openssl/include/openssl)" \
-		LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -L$(TOP)/nvram$(BCMEX) -L$(TOP)/shared $(if $(RTCONFIG_HTTPS),-L$(TOP)/openssl -lcrypto -lssl)" \
-		$(CONFIGURE) --prefix="" LIBS='-lnvram -lshared' --disable-dependency-tracking \
-	)
-else
-	( cd ndisc6 ; \
-		CFLAGS="-Os -ffunction-sections -fdata-sections -I$(SRCBASE)/include -I$(TOP)/shared $(if $(RTCONFIG_HTTPS),-I$(TOP)/openssl/include/openssl)" \
-		LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -L$(TOP)/nvram$(BCMEX) -L$(TOP)/shared $(if $(RTCONFIG_HTTPS),-L$(TOP)/openssl -lcrypto -lssl)" \
-		$(CONFIGURE) --prefix="" LIBS='-lnvram -lshared' --disable-dependency-tracking \
-	)
-endif
-
-ndisc6-clean:
-	-@[ ! -f ndisc6/Makefile ] || $(MAKE) -C ndisc6 clean
-	-@[ ! -f ndisc6/Makefile ] || $(MAKE) -C ndisc6 distclean
-	-@[ -f ndisc6/stamp-h1 ] || rm -f ndisc6/stamp-h1
-
-ndisc6-install: ndisc6
-	install -D ndisc6/rdnssd/rdnssd $(INSTALLDIR)/ndisc6/usr/sbin/rdnssd
-	install -D ndisc6/src/rdisc6 $(INSTALLDIR)/ndisc6/usr/sbin/rdisc6
-	$(STRIP) $(INSTALLDIR)/ndisc6/usr/sbin/rdnssd
-	$(STRIP) $(INSTALLDIR)/ndisc6/usr/sbin/rdisc6
-ifneq ($(RTCONFIG_BCMWL6),y)
-	install -D $(shell dirname $(shell which $(CXX)))/../lib/librt.so.0 $(TARGETDIR)/lib/librt.so.0
-endif
-
-dhcpv6/stamp-h1:
-	@cd dhcpv6 && \
-	CFLAGS="-Os -Wall $(EXTRACFLAGS) -D_GNU_SOURCE -ffunction-sections -fdata-sections -DUSE_DHCP6SRV" \
-	LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -fPIC" \
-	ac_cv_func_setpgrp_void=yes \
-	$(CONFIGURE) --prefix= --with-localdbdir=/var --with-sysconfdir=/etc
-	-@$(MAKE) -C dhcpv6 clean
-	@touch $@
-
-dhcpv6: dhcpv6/stamp-h1
-	@$(SEP)
-	@$(MAKE) -C dhcpv6 dhcp6c
-	@$(MAKE) -C dhcpv6 dhcp6s
-
-dhcpv6-install: dhcpv6
-	install -D dhcpv6/dhcp6c $(INSTALLDIR)/dhcpv6/usr/sbin/dhcp6c
-	$(STRIP) $(INSTALLDIR)/dhcpv6/usr/sbin/dhcp6c
-	install -D dhcpv6/dhcp6s $(INSTALLDIR)/dhcpv6/usr/sbin/dhcp6s
-	$(STRIP) $(INSTALLDIR)/dhcpv6/usr/sbin/dhcp6s
-
-dhcpv6-clean:
-	-@$(MAKE) -C dhcpv6 clean
-	@rm -f dhcpv6/stamp-h1
+	@rm -f util-linux/Makefile
 
 odhcp6c: odhcp6c/Makefile
 	@EXT_CFLAGS="-Os -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections -fPIC" \
@@ -1985,6 +2053,7 @@ e2fsprogs-install:
 
 e2fsprogs-clean:
 	[ ! -f e2fsprogs/Makefile ] || $(MAKE) -C e2fsprogs clean
+	@rm -f e2fsprogs/Makefile
 
 ecmh/stamp-h1:
 	@touch ecmh/src/stamp-h1
@@ -2021,16 +2090,21 @@ vlan-install:
 	$(MAKE) -C vlan CROSS=$(CROSS_COMPILE) INSTALLDIR=$(INSTALLDIR) install	# STRIPTOOL=$(STRIP)
 	$(STRIP) $(INSTALLDIR)/vlan/usr/sbin/vconfig
 
-accel-pptpd/stamp-h1: kernel_header 
-	cd accel-pptpd/pptpd-1.3.3  && CFLAGS="-g -O2 $(EXTRACFLAGS) -idirafter $(KDIR)/include" \
-	$(CONFIGURE) --prefix=/usr --enable-bcrelay KDIR=$(KDIR) PPPDIR=$(TOP)/pppd
-	touch $@
-
-accel-pptpd: pppd accel-pptpd/stamp-h1
+accel-pptpd: kernel_header pppd accel-pptpd/pptpd-1.3.3/Makefile
 	@$(MAKE) -C accel-pptpd server
 
+accel-pptpd/pptpd-1.3.3/Makefile:
+	$(MAKE) accel-pptpd-configure
+
+accel-pptpd-configure:
+	( cd accel-pptpd/pptpd-1.3.3 && CFLAGS="$(CFLAGS) -g -O2 $(EXTRACFLAGS) -idirafter $(KDIR)/include" \
+		$(CONFIGURE) --prefix=/usr --bindir=/usr/sbin --libdir=/usr/lib \
+			--enable-bcrelay KDIR=$(KDIR) PPPDIR=$(TOP)/pppd \
+	)
+
 accel-pptpd-clean:
-	-@$(MAKE) -C accel-pptpd distclean
+	[ ! -f accel-pptpd/pptpd-1.3.3/Makefile ] || $(MAKE) -C accel-pptpd distclean
+	@rm -f accel-pptpd/pptpd-1.3.3/Makefile
 
 accel-pptpd-install: accel-pptpd
 	$(MAKE) -C accel-pptpd server_install
@@ -2148,6 +2222,40 @@ ez-ipupdate-install:
 	install -D ez-ipupdate/ez-ipupdate $(INSTALLDIR)/ez-ipupdate/usr/sbin/ez-ipupdate
 	$(STRIP) $(INSTALLDIR)/ez-ipupdate/usr/sbin/ez-ipupdate
 
+quagga/stamp-h1:
+	@cd quagga && \
+	CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) \
+	CFLAGS="-Os -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections" \
+	LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -fPIC" \
+	$(CONFIGURE) --disable-ripngd --disable-ospfd --disable-doc --disable-ospfclient \
+	--disable-ospf6d --disable-bgpd --disable-bgp-announce --disable-babeld \
+	--disable-isisd --enable-user=admin --enable-group=admin
+	@touch $@
+
+quagga: quagga/stamp-h1
+	@$(MAKE) -C quagga CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD)
+
+quagga-clean:
+	-@$(MAKE) -C quagga clean
+	@rm -f quagga/stamp-h1
+
+quagga-install:
+	install -d $(INSTALLDIR)/quagga/usr/lib
+	libtool --mode=install install -c quagga/lib/libzebra.la $(INSTALLDIR)/quagga/usr/lib
+	libtool --finish $(INSTALLDIR)/quagga/usr/lib
+	rm -f $(INSTALLDIR)/quagga/usr/lib/libzebra.a
+	rm -f $(INSTALLDIR)/quagga/usr/lib/libzebra.la
+	install -d $(INSTALLDIR)/quagga/usr/sbin
+	install -d $(INSTALLDIR)/quagga/usr/local/etc
+	libtool --mode=install install -c quagga/zebra/zebra $(INSTALLDIR)/quagga/usr/sbin
+	install -c -m 777 quagga/zebra/zebra.conf.sample $(INSTALLDIR)/quagga/usr/local/etc/zebra.conf
+	libtool --mode=install install -c quagga/ripd/ripd $(INSTALLDIR)/quagga/usr/sbin
+	install -c -m 777 quagga/ripd/ripd.conf.sample $(INSTALLDIR)/quagga/usr/local/etc/ripd.conf
+	libtool --mode=install install -c quagga/watchquagga/watchquagga $(INSTALLDIR)/quagga/usr/sbin
+	$(STRIP) $(INSTALLDIR)/quagga/usr/sbin/zebra
+	$(STRIP) $(INSTALLDIR)/quagga/usr/sbin/ripd
+	$(STRIP) $(INSTALLDIR)/quagga/usr/sbin/watchquagga 
+
 zebra/stamp-h1:
 	@cd zebra && rm -f config.cache && \
 	CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) \
@@ -2236,7 +2344,6 @@ tr069-install: tr069
 	install -D tr069/test/notify $(INSTALLDIR)/tr069/sbin/notify
 	install -D tr069/test/udpclient $(INSTALLDIR)/tr069/sbin/udpclient
 ifeq ($(RTCONFIG_TR181),y)
-	install -D tr069/conf/ASUSWRT/tr_181.xml $(INSTALLDIR)/tr069/usr/tr/tr.xml
 ifeq ($(RTCONFIG_DSL),y)
 	install -D tr069/conf/ASUSWRT/tr_181.xml.dsl $(INSTALLDIR)/tr069/usr/tr/tr.xml
 else
@@ -2346,20 +2453,26 @@ iperf-install:
 
 iperf-clean:
 	[ ! -f iperf/Makefile ] || $(MAKE) -C iperf distclean
+	@rm -f iperf/Makefile
 
-libevent-2.0.21: libevent-2.0.21/stamp-h1
-	$(MAKE) -C $@
-	$(MAKE) -C $@ install
+libevent-2.0.21: libevent-2.0.21/Makefile
+	$(MAKE) -C $@ && $(MAKE) $@-stage
 
-libevent-2.0.21/stamp-h1:
-	cd libevent-2.0.21 && CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
-	$(CONFIGURE) --prefix=$(TOP)/libevent --enable-static
-	touch $@
+libevent-2.0.21/Makefile:
+	$(MAKE) libevent-2.0.21-configure
+
+libevent-2.0.21-configure:
+	( cd libevent-2.0.21 ; CFLAGS="$(CFLAGS) -Os -Wall $(EXTRACFLAGS)" \
+		$(CONFIGURE) --prefix=/usr --bindir=/usr/sbin --libdir=/usr/lib \
+	)
+
+libevent-2.0.21-install: libevent-2.0.21
+	install -D $(STAGEDIR)/usr/lib/libevent-2.0.so.5 $(INSTALLDIR)/$</usr/lib/libevent-2.0.so.5
+	$(STRIP) $(INSTALLDIR)/$</usr/lib/libevent-2.0.so*
 
 libevent-2.0.21-clean:
 	[ ! -f libevent-2.0.21/Makefile ] || $(MAKE) -C libevent-2.0.21 clean
-	@rm -f libevent-2.0.21/stamp-h1
-
+	@rm -f libevent-2.0.21/Makefile
 
 tor-0.2.5.10: openssl zlib libevent-2.0.21 tor-0.2.5.10/Makefile
 	@$(SEP)
@@ -2376,6 +2489,7 @@ tor-0.2.5.10-install: tor-0.2.5.10
 
 tor-0.2.5.10-clean:
 	[ ! -f tor-0.2.5.10/Makefile ] || $(MAKE) -C tor-0.2.5.10 clean
+	@rm -f tor-0.2.5.10/Makefile
 
 iproute2:
 	@$(SEP)
@@ -2783,11 +2897,7 @@ endif
 snooper-clean:
 	$(MAKE) -C snooper clean
 
-ifneq ($(or $(findstring linux-2.6.36,$(LINUXDIR)),$(findstring linux-3.x,$(LINUXDIR))),)
-netconf: iptables-1.4.x
-else
-netconf: iptables
-endif
+netconf: $(IPTABLES)
 	+$(MAKE) LINUXDIR=$(LINUXDIR) -C netconf
 
 igmp: netconf
@@ -2800,7 +2910,7 @@ igmp-install: netconf
 igmp-clean:
 	$(MAKE) -C igmp clean
 
-wps$(BCMEX)$(EX7): nvram$(BCMEX) shared libupnp
+wps$(BCMEX)$(EX7): nvram$(BCMEX) shared libupnp$(BCMEX)$(EX7)
 ifeq ($(RTCONFIG_WPS),y)
 	-rm -rf $(OLD_SRC)/wps
 	-ln -s $(SRCBASE)/wps $(OLD_SRC)/wps
@@ -2824,6 +2934,44 @@ ifeq ($(RTCONFIG_WPS),y)
 else
 	# Prevent to use generic rules"
 	@true
+endif
+
+.PHONY: wlexe
+wlexe:
+ifeq ($(RTCONFIG_WLEXE),y)
+ifneq ($(wildcard $(SRCBASE_SYS)/wl/exe/GNUmakefile),)
+ifeq ($(ARCH),arm)
+	$(MAKE) TARGETARCH=arm_le ARCH_SFX="" TARGET_PREFIX=$(CROSS_COMPILE) -C $(SRCBASE_SYS)/wl/exe
+else
+	$(MAKE) TARGETARCH=mips ARCH_SFX="" TARGET_PREFIX=$(CROSS_COMPILE) -C $(SRCBASE_SYS)/wl/exe
+endif
+	[ -d wlexe ] || install -d wlexe
+	install $(SRCBASE_SYS)/wl/exe/wl wlexe
+ifeq ($(ARCH),arm)
+	install $(SRCBASE_SYS)/wl/exe/socket_noasd/arm_le/wl_server_socket wlexe
+else
+	install $(SRCBASE_SYS)/wl/exe/socket_noasd/mips/wl_server_socket wlexe
+endif
+endif
+endif
+
+.PHONY: wlexe-clean
+wlexe-clean:
+ifneq ($(wildcard $(SRCBASE_SYS)/wl/exe/GNUmakefile),)
+	$(MAKE) TARGET_PREFIX=$(CROSS_COMPILE) -C $(SRCBASE_SYS)/wl/exe clean
+	$(RM) wlexe/wl	
+	$(RM) wlexe/wl_server_socket
+endif
+
+.PHONY: wlexe-install
+wlexe-install:
+ifeq ($(RTCONFIG_WLEXE),y)
+ifneq ($(wildcard $(SRCBASE_SYS)/wl/exe/GNUmakefile),)
+	[ ! -d wlexe ] || install -D -m 755 wlexe/wl $(INSTALLDIR)/wlexe/usr/sbin/wl
+	[ ! -d wlexe ] || install -D -m 755 wlexe/wl_server_socket $(INSTALLDIR)/wlexe/usr/sbin/wl_server_socket
+	[ ! -d wlexe ] || $(STRIP) $(INSTALLDIR)/wlexe/usr/sbin/wl
+	[ ! -d wlexe ] || $(STRIP) $(INSTALLDIR)/wlexe/usr/sbin/wl_server_socket
+endif
 endif
 
 udev:
@@ -2854,16 +3002,16 @@ endif
 emf$(BCMEX)$(EX7)-clean:
 	-@$(MAKE) -C emf$(BCMEX)$(EX7)/emfconf clean
 
-igs:
+igs$(BCMEX)$(EX7):
 	$(MAKE) -C emf$(BCMEX)$(EX7)/igsconf CROSS=$(CROSS_COMPILE)
 
-igs-install:
+igs$(BCMEX)$(EX7)-install:
 ifeq ($(RTCONFIG_EMF),y)
 	install -d $(TARGETDIR)
 	$(MAKE) -C emf$(BCMEX)$(EX7)/igsconf CROSS=$(CROSS_COMPILE) INSTALLDIR=$(INSTALLDIR) install
 endif
 
-igs-clean:
+igs$(BCMEX)$(EX7)-clean:
 	-@$(MAKE) -C emf$(BCMEX)$(EX7)/igsconf clean
 
 ebtables: kernel_header dummy
@@ -2929,33 +3077,37 @@ openpam-install: openpam
 	$(STRIP) -s $(INSTALLDIR)/openpam/usr/lib/pam_unix.so
 
 openpam-clean:
-	@[ ! -f openpam/Makefile ] || $(MAKE) -C openpam distclean
-	@rm -f openpam/stamp-h1
+	[ ! -f openpam/Makefile ] || $(MAKE) -C openpam distclean
+	@rm -f openpam/Makefile
 
-openvpn/stamp-h1: lzo zlib
-	cd openvpn && ./autogen.sh && \
-	export OPENSSL_CRYPTO_CFLAGS="-I$(TOP)/openssl"; \
-	export OPENSSL_CRYPTO_LIBS="-L$(TOP)/openssl -lcrypto"; \
-	export OPENSSL_SSL_CFLAGS="-I$(TOP)/openssl"; \
-	export OPENSSL_SSL_LIBS="-L$(TOP)/openssl -lssl"; \
-	CFLAGS="-Os -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections $(if $(RTCONFIG_HTTPS),-I$(TOP)/openssl/include/openssl)" \
-	LDFLAGS="$(EXTRALDFLAGS) -L$(TOP)/nvram$(BCMEX) -lnvram -L$(TOP)/shared -lshared $(if $(RTCONFIG_QTN),-L$(TOP)/libqcsapi_client -lqcsapi_client) $(if $(RTCONFIG_HTTPS),-L$(TOP)/openssl -lcrypto -lssl) -L$(TOP)/zlib -lz -lpthread -ldl -L$(TOP)/lzo/src/.libs -L$(TOP)/openpam/lib/libpam/.libs -ffunction-sections -fdata-sections -Wl,--gc-sections" \
-	CPPFLAGS="-I$(TOP)/lzo/include -I$(TOP)/openssl/include -I$(TOP)/openpam/include -I$(TOP)/shared -I$(SRCBASE)/include" \
-	IPROUTE="/usr/sbin/ip" \
-	$(CONFIGURE) --prefix=/usr \
-	--bindir=/usr/sbin --libdir=/usr/lib \
-	--disable-debug --enable-management --disable-small \
-	--disable-selinux --disable-socks --enable-password-save \
-	--enable-plugin-auth-pam \
-	ac_cv_lib_resolv_gethostbyname=no
-	touch $@
+openvpn/dh2048.pem:
+	openssl dhparam -out $@ 2048
 
-openvpn: openvpn/stamp-h1 shared openssl lzo openpam zlib
+openvpn: shared openssl lzo openpam zlib openvpn/dh2048.pem openvpn/Makefile
 	$(MAKE) -C $@
 
+openvpn/Makefile:
+	$(MAKE) openvpn-configure
+
+openvpn-configure:
+	( cd openvpn ; ./autogen.sh && export OPENSSL_CRYPTO_CFLAGS="-I$(TOP)/openssl"; \
+		export OPENSSL_CRYPTO_LIBS="-L$(TOP)/openssl -lcrypto"; \
+		export OPENSSL_SSL_CFLAGS="-I$(TOP)/openssl"; \
+		export OPENSSL_SSL_LIBS="-L$(TOP)/openssl -lssl"; \
+		CFLAGS="-Os -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections $(if $(RTCONFIG_HTTPS),-I$(TOP)/openssl/include/openssl)" \
+		LDFLAGS="$(EXTRALDFLAGS) -L$(TOP)/nvram$(BCMEX) -lnvram -L$(TOP)/shared -lshared $(if $(RTCONFIG_QTN),-L$(TOP)/libqcsapi_client -lqcsapi_client) $(if $(RTCONFIG_HTTPS),-L$(TOP)/openssl -lcrypto -lssl) -L$(TOP)/zlib -lz -lpthread -ldl -L$(TOP)/lzo/src/.libs -L$(TOP)/openpam/lib/libpam/.libs -ffunction-sections -fdata-sections -Wl,--gc-sections" \
+		CPPFLAGS="-I$(TOP)/lzo/include -I$(TOP)/openssl/include -I$(TOP)/openpam/include -I$(TOP)/shared -I$(SRCBASE)/include" \
+		IPROUTE="/usr/sbin/ip" \
+		$(CONFIGURE) --prefix=/usr --bindir=/usr/sbin --libdir=/usr/lib \
+			--disable-debug --enable-management --disable-small \
+			--disable-selinux --disable-socks --enable-password-save \
+			--enable-plugin-auth-pam \
+			ac_cv_lib_resolv_gethostbyname=no \
+	)
+
 openvpn-clean:
-	@[ ! -f openvpn/Makefile ] || $(MAKE) -C openvpn clean
-	@rm -f openvpn/stamp-h1
+	[ ! -f openvpn/Makefile ] || $(MAKE) -C openvpn clean
+	@rm -f openvpn/Makefile
 
 openvpn-install: openvpn
 	install -D openvpn/src/openvpn/.libs/openvpn $(INSTALLDIR)/openvpn/usr/sbin/openvpn
@@ -2965,6 +3117,7 @@ openvpn-install: openvpn
 	$(STRIP) -s $(INSTALLDIR)/openvpn/usr/lib/openvpn-plugin-auth-pam.so
 	@mkdir -p $(TARGETDIR)/rom/easy-rsa
 	install openvpn/easy-rsa/2.0/* $(TARGETDIR)/rom/easy-rsa
+	install -D $</dh2048.pem $(INSTALLDIR)/openvpn/rom/dh2048.pem
 
 sdparm-1.02: sdparm-1.02/Makefile
 	$(MAKE) -C $@
@@ -2989,6 +3142,7 @@ sdparm-1.02-install: sdparm-1.02
 
 sdparm-1.02-clean:
 	[ ! -f sdparm-1.02/Makefile ] || $(MAKE) -C sdparm-1.02 distclean
+	@rm -f sdparm-1.02/Makefile
 
 .PHONY: strace
 strace: strace/Makefile
@@ -3008,7 +3162,8 @@ strace-install:
 	@$(STRIP) $(INSTALLDIR)/strace/sbin/strace
 
 strace-clean:
-	@[ ! -f strace/Makefile ] || $(MAKE) -C strace distclean
+	[ ! -f strace/Makefile ] || $(MAKE) -C strace distclean
+	@rm -f strace/Makefile
 
 .PHONY: termcap
 termcap: termcap/Makefile
@@ -3021,7 +3176,8 @@ termcap-install:
 	# We don't need to install termcap to target filesystem.
 
 termcap-clean:
-	$(MAKE) -C termcap distclean
+	[ ! -f termcap/Makefile ] || $(MAKE) -C termcap distclean
+	@rm -f termcap/Makefile
 
 .PHONY: gdb
 gdb: termcap gdb/Makefile
@@ -3042,7 +3198,8 @@ gdb-install:
 	@$(STRIP) $(INSTALLDIR)/gdb/sbin/gdbserver
 
 gdb-clean:
-	@[ ! -f gdb/Makefile ] || $(MAKE) -C gdb distclean
+	[ ! -f gdb/Makefile ] || $(MAKE) -C gdb distclean
+	@rm -f gdb/Makefile
 
 .PHONY: openlldp
 openlldp: openlldp/Makefile
@@ -3058,7 +3215,8 @@ openlldp-install:
 	@$(STRIP) $(INSTALLDIR)/openlldp/sbin/lldpd
 
 openlldp-clean:
-	@[ ! -f openlldp/Makefile ] || $(MAKE) -C openlldp distclean
+	[ ! -f openlldp/Makefile ] || $(MAKE) -C openlldp distclean
+	@rm -f openlldp/Makefile
 
 
 nas$(BCMEX)$(EX7): nvram$(BCMEX)
@@ -3074,7 +3232,7 @@ else
 	cd lighttpd-1.4.29 && ./preconfigure-script-qtn touch $@
 endif
 
-lighttpd-1.4.29: shared nvram$(BCMEX) libdisk samba-3.5.8 pcre-8.31 libxml2 sqlite libexif openssl wb push_log lighttpd-1.4.29/stamp-h1
+lighttpd-1.4.29: shared nvram$(BCMEX) libdisk samba-3.5.8 pcre-8.31 libxml2 sqlite libexif openssl lighttpd-1.4.29/stamp-h1
 
 lighttpd-1.4.29-install: lighttpd-1.4.29
 	install -D lighttpd-1.4.29/src/.libs/lighttpd $(INSTALLDIR)/lighttpd-1.4.29/usr/sbin/lighttpd
@@ -3218,6 +3376,26 @@ sambaclient-clean:
 	-@$(MAKE) -C sambaclient clean
 	rm -rf sambaclient/stamp-h1
 
+#usbclient
+usbclient/stamp-h1: 
+	touch $@
+
+usbclient: usbclient/stamp-h1
+	@$(MAKE) -C usbclient
+
+usbclient-install: usbclient
+	@$(SEP)
+	install -D usbclient/usbclient $(INSTALLDIR)/usbclient/usr/sbin/usbclient
+	$(STRIP) $(INSTALLDIR)/usbclient/usr/sbin/usbclient
+ifeq ($(RTCONFIG_BCMARM),y)
+	install -D $(shell dirname $(shell which $(CXX)))/../arm-brcm-linux-uclibcgnueabi/lib/libstdc++.so.6 $(INSTALLDIR)/usbclient/usr/lib/libstdc++.so.6
+else
+	install -D $(shell dirname $(shell which $(CXX)))/../lib/libstdc++.so.6 $(INSTALLDIR)/usbclient/usr/lib/libstdc++.so.6
+endif
+usbclient-clean:
+	-@$(MAKE) -C usbclient clean
+	rm -rf usbclient/stamp-h1
+
 #add by alan 
 #add install neon 
 neon/stamp-h1 neon/config.h:
@@ -3270,13 +3448,17 @@ webdav_client-clean:
 
 #add by gauss
 #add install libcurl
-curl-7.21.7/stamp-h1:
-	cd curl-7.21.7 && \
-	$(CONFIGURE) CC=$(CC) --enable-http --with-ssl=$(TOP)/openssl LDFLAGS="-ldl"
-	touch $@
+curl-7.21.7: curl-7.21.7/Makefile
+	@$(MAKE) -C curl-7.21.7 && $(MAKE) $@-stage
 
-curl-7.21.7: curl-7.21.7/stamp-h1
-	@$(MAKE) -C curl-7.21.7
+curl-7.21.7/Makefile:
+	$(MAKE) curl-7.21.7-configure
+
+curl-7.21.7-configure:
+	( cd curl-7.21.7 ; $(CONFIGURE) CC=$(CC) \
+		--prefix=/usr --bindir=/usr/sbin --libdir=/usr/lib \
+		--enable-http --with-ssl=$(TOP)/openssl LDFLAGS="-ldl" \
+	)
 
 curl-7.21.7-install: curl-7.21.7
 	@$(SEP)
@@ -3285,8 +3467,8 @@ curl-7.21.7-install: curl-7.21.7
 	cd $(INSTALLDIR)/curl-7.21.7/usr/lib && ln -sf libcurl.so.4.2.0 libcurl.so && ln -sf libcurl.so.4.2.0 libcurl.so.4
 
 curl-7.21.7-clean:
-	-@$(MAKE) -C curl-7.21.7 clean
-	@rm -f curl-7.21.7/stamp-h1
+	[ ! -f curl-7.21.7/Makefile ] || $(MAKE) -C curl-7.21.7 clean
+	@rm -f curl-7.21.7/Makefile
 
 #snmp with asus mib and openssl 1.0.0
 net-snmp-5.7.2/stamp-h1:
@@ -3346,7 +3528,7 @@ inotify-clean:
 	-@$(MAKE) -C inotify clean
 
 wl$(BCMEX)$(EX7):
-	-@$(MAKE) -C wl_arm
+	-@$(MAKE) -C wl$(BCMEX)$(EX7)
 
 wl$(BCMEX)$(EX7)-install:
 	@$(SEP)
@@ -3449,6 +3631,7 @@ netatalk-3.0.5/stamp-h1: openssl libgcrypt-1.5.1 db-4.8.30
 	$(CONFIGURE) CPPFLAGS="-I$(TOP)/db-4.8.30/build_unix -I$(TOP)/libgcrypt-1.5.1/src" \
 	LDFLAGS="-L$(TOP)/db-4.8.30/build_unix/.libs -L$(TOP)/libgcrypt-1.5.1/src/.libs" \
 	LIBS="-L$(TOP)/libgpg-error-1.10/src/.libs -lgpg-error -L$(TOP)/libgcrypt-1.5.1/src/.libs -lgcrypt" \
+	ac_cv_path_LIBGCRYPT_CONFIG=$(TOP)/libgcrypt-1.5.1/src/libgcrypt-config \
 	--without-kerberos \
 	--with-bdb=$(TOP)/db-4.8.30/build_unix \
 	--prefix=$(INSTALLDIR)/netatalk-3.0.5/usr \
@@ -3459,6 +3642,7 @@ netatalk-3.0.5/stamp-h1: openssl libgcrypt-1.5.1 db-4.8.30
 
 netatalk-3.0.5: netatalk-3.0.5/stamp-h1
 	@$(SEP)
+	@touch netatalk-3.0.5/configure
 	@$(MAKE) -C netatalk-3.0.5
 
 netatalk-3.0.5-install: netatalk-3.0.5
@@ -3517,14 +3701,24 @@ expat-2.0.1-clean:
 	@rm -f expat-2.0.1/stamp-h1
 
 #avahi-0.6.31
-avahi-0.6.31/stamp-h1: shared nvram$(BCMEX) expat-2.0.1 libdaemon
-	cd $(TOP)/avahi-0.6.31 && \
-	$(CONFIGURE) LDFLAGS="-L$(TOP)/expat-2.0.1/.libs -ldl -lpthread" CFLAGS="-I$(TOP)/expat-2.0.1/lib -I$(TOP)/shared -I$(SRCBASE)/include" --prefix=$(INSTALLDIR)/avahi-0.6.31/usr --with-distro=archlinux --disable-glib --disable-gobject --disable-qt3 --disable-qt4 --disable-gtk --disable-dbus --disable-expat --disable-gdbm --disable-python --disable-pygtk --disable-python-dbus --disable-mono --disable-monodoc --disable-gtk3 --with-xml=none  LIBDAEMON_LIBS="-L$(TOP)/libdaemon/libdaemon/.libs -ldaemon -L$(TOP)/nvram$(BCMEX) -lnvram -L$(TOP)/shared -lshared $(if $(RTCONFIG_QTN),-L$(TOP)/libqcsapi_client -lqcsapi_client)" LIBDAEMON_CFLAGS="-I$(TOP)/libdaemon" --disable-autoipd --with-xml=expat --disable-stack-protector --with-avahi-user="admin" --with-avahi-group="root"
-	touch $@
-
-avahi-0.6.31: avahi-0.6.31/stamp-h1
+avahi-0.6.31: shared nvram$(BCMEX) expat-2.0.1 libdaemon avahi-0.6.31/Makefile
 	@$(SEP)
 	@$(MAKE) -C avahi-0.6.31
+
+avahi-0.6.31/Makefile:
+	$(MAKE) avahi-0.6.31-configure
+
+avahi-0.6.31-configure:
+	( cd avahi-0.6.31 ; $(CONFIGURE) LDFLAGS="-L$(TOP)/expat-2.0.1/.libs -ldl -lpthread" \
+		CFLAGS="$(CFLAGS) -I$(TOP)/expat-2.0.1/lib -I$(TOP)/shared -I$(SRCBASE)/include" \
+		--prefix=$(INSTALLDIR)/avahi-0.6.31/usr --with-distro=archlinux \
+		--disable-glib --disable-gobject --disable-qt3 --disable-qt4 --disable-gtk \
+		--disable-dbus --disable-expat --disable-gdbm --disable-python \
+		--disable-pygtk --disable-python-dbus --disable-mono --disable-monodoc \
+		--disable-gtk3 --with-xml=none \
+		LIBDAEMON_LIBS="-L$(TOP)/libdaemon/libdaemon/.libs -ldaemon -L$(TOP)/nvram$(BCMEX) -lnvram -L$(TOP)/shared -lshared $(if $(RTCONFIG_QTN),-L$(TOP)/libqcsapi_client -lqcsapi_client)" \
+		LIBDAEMON_CFLAGS="-I$(TOP)/libdaemon" --disable-autoipd --with-xml=expat --disable-stack-protector --with-avahi-user="admin" --with-avahi-group="root" \
+	)
 
 avahi-0.6.31-install: avahi-0.6.31
 	install -D avahi-0.6.31/avahi-daemon/.libs/avahi-daemon $(INSTALLDIR)/avahi-0.6.31/usr/sbin/avahi-daemon
@@ -3537,8 +3731,8 @@ avahi-0.6.31-install: avahi-0.6.31
 	cd $(INSTALLDIR)/avahi-0.6.31/usr/lib && ln -sf libavahi-core.so.7.0.2 libavahi-core.so.7
 
 avahi-0.6.31-clean:
-	-@$(MAKE) -C avahi-0.6.31 clean
-	@rm -f avahi-0.6.31/stamp-h1
+	[ ! -f avahi-0.6.31/Makefile ] || $(MAKE) -C avahi-0.6.31 clean
+	@rm -f avahi-0.6.31/Makefile
 
 madwimax-0.1.1/stamp-h1:
 	cd $(TOP)/madwimax-0.1.1 && \
@@ -3589,17 +3783,17 @@ netstat-nat: netstat-nat/Makefile
 	$(MAKE) -C netstat-nat
 
 tftp:
-	cd tftp-1.0 && CC=$(CC) && $(MAKE)
+	cd tftp && CC=$(CC) && $(MAKE)
 
 tftp-clean:
-	cd tftp-1.0 && $(MAKE) clean
+	cd tftp && $(MAKE) clean
 
 tftp-install:
 	# TPTP server
-	install -D tftp-1.0/tftpd $(INSTALLDIR)/tftp/usr/sbin/tftpd
+	install -D tftp/tftpd $(INSTALLDIR)/tftp/usr/sbin/tftpd
 	$(STRIP) -s $(INSTALLDIR)/tftp/usr/sbin/tftpd
 	# TFTP client
-	#install -D tftp-1.0/tftpc $(INSTALLDIR)/tftp/usr/sbin/tftpc
+	#install -D tftp/tftpc $(INSTALLDIR)/tftp/usr/sbin/tftpc
 	#$(STRIP) -s $(INSTALLDIR)/tftp/usr/sbin/tftpc
 
 bwdpi: nvram$(BCMEX)
@@ -3612,6 +3806,14 @@ bwdpi_sqlite-clean:
 	cd bwdpi_sqlite && $(MAKE) clean
 
 bwdpi_sqlite-install: bwdpi_sqlite
+
+traffic_control: sqlite
+	cd traffic_control && CC=$(CC) && $(MAKE)
+
+traffic_control-clean:
+	cd traffic_control && $(MAKE) clean
+
+traffic_control-install: traffic_control
 
 NORTON_DIR := $(SRCBASE)/router/norton${BCMEX}
 
@@ -3634,7 +3836,7 @@ email-3.1.3/stamp-h1: openssl
 	$(CONFIGURE) --with-ssl --sysconfdir=/etc \
 		CFLAGS=-I$(SRCBASE)/router/openssl/include \
 		LDFLAGS="-L$(SRCBASE)/router/openssl" \
-		LIBS="-lcrypto -lssl"
+		LIBS="-lcrypto -lssl $(if $(RTCONFIG_QCA), -ldl)"
 	touch $@
 
 email-3.1.3: email-3.1.3/stamp-h1
@@ -3699,14 +3901,37 @@ GeoIP-1.6.2-clean:
 	-@[ ! -f GeoIP-1.6.2/Makefile ] || $(MAKE) -C GeoIP-1.6.2 distclean
 	@rm -f GeoIP-1.6.2/stamp-h1
 
-wget/Makefile: openssl zlib
+Transmission/configure:
+	cd Transmission && ./autogen.sh
+
+Transmission/Makefile: Transmission/configure
+	( cd Transmission ; $(CONFIGURE) --prefix=/usr --bindir=/usr/sbin --libdir=/usr/lib \
+		CFLAGS="$(CFLAGS) -I$(STAGEDIR)/usr/include" \
+		LDFLAGS="$(LDFLAGS) -L$(STAGEDIR)/usr/lib" \
+		--disable-nls --disable-gtk \
+	)
+
+Transmission: curl-7.21.7 libevent-2.0.21 Transmission/Makefile
+	@$(SEP)
+	$(MAKE) -C $@
+
+Transmission-install: Transmission
+	install -D $</daemon/transmission-daemon $(INSTALLDIR)/$</usr/sbin/transmission-daemon
+	$(STRIP) $(INSTALLDIR)/$</usr/sbin/*
+
+Transmission-clean:
+	[ ! -f Transmission/Makefile ] || $(MAKE) -C Transmission KERNEL_DIR=$(LINUXDIR) distclean
+	@rm -f Transmission/Makefile
+
+wget/Makefile:
 	cd wget && autoreconf -i -f && $(CONFIGURE) --with-ssl=openssl --with-libssl-prefix=$(TOP)/openssl --disable-opie --disable-ntlm --disable-debug --disable-nls --disable-iri --disable-dependency-tracking CFLAGS="$(EXTRACFLAGS) -I$(TOP)/openssl/include -I$(TOP)/zlib" LDFLAGS="-L$(TOP)/openssl -lssl -lcrypto -L$(TOP)/zlib -lz"
 
-wget: wget/Makefile
+wget: openssl zlib wget/Makefile
 	$(MAKE) -C wget CFLAGS="-Os -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections -Wl,--gc-sections -I$(TOP)/openssl/include -I$(TOP)/zlib"
 
 wget-clean:
-	-@[ ! -f wget/Makefile ] || $(MAKE) -C wget distclean
+	[ ! -f wget/Makefile ] || $(MAKE) -C wget distclean
+	@rm -f wget/Makefile
 
 wget-install:
 	install -D wget/src/wget $(INSTALLDIR)/wget/usr/sbin/wget
@@ -3725,8 +3950,31 @@ qca-wifi-clean:
 qca-wifi-stage:
 	$(MAKE) -C qca-wifi stage
 
+qca-wifi-PLC:
+	$(MAKE) -C $@ TARGET_CROSS=$(CROSS_COMPILE) LINUX_KARCH=$(ARCH) LINUX_VERSION=$(LINUX_KERNEL) LINUX_DIR=$(LINUXDIR) && $(MAKE) $@-stage
+
+qca-wifi-PLC-install: qca-wifi-PLC
+	$(MAKE) -C $< INSTALLDIR=$(INSTALLDIR)/$< LINUX_VERSION=$(LINUX_KERNEL) install
+
+qca-wifi-PLC-clean:
+	$(MAKE) -C qca-wifi-PLC clean KERNELPATH=$(LINUXDIR)
+	$(RM) -f qca-wifi-PLC/lsdk_flags
+
+qca-wifi-PLC-stage:
+	$(MAKE) -C qca-wifi-PLC stage
+
 qca-hostap: qca-wifi
 	$(MAKE) -C $@
+
+qca-hostap-PLC: qca-wifi-PLC
+	$(MAKE) -C $@
+
+LinuxART2-install: LinuxART2
+ifneq ($(ART2_INSTALLDIR),)
+	$(MAKE) -C $< install INSTALLDIR=$(ART2_INSTALLDIR)/$<
+else
+	$(MAKE) -C $< install INSTALLDIR=$(INSTALLDIR)/$<
+endif
 
 stage-tags: dummy
 	ctags -aR -f $(SRCBASE)/tags $(STAGEDIR)/usr/include
@@ -3735,6 +3983,103 @@ sysstat-10.0.3-install:
 	$(MAKE) -C sysstat-10.0.3 install_base DESTDIR=$(INSTALLDIR)/sysstat-10.0.3 INSTALL_DOC=n
 	mv $(INSTALLDIR)/sysstat-10.0.3/etc $(INSTALLDIR)/sysstat-10.0.3/etc_sysstat
 	rm -rf $(INSTALLDIR)/sysstat-10.0.3/var
+#
+# tunnel related 
+#
+
+asusnatnl: openssl
+	$(MAKE) -C $@
+
+asusnatnl-clean:
+	$(MAKE) -C asusnatnl clean
+
+asusnatnl-install: asusnatnl
+	install -d $(INSTALLDIR)/asusnatnl/usr/lib/
+	install -D asusnatnl/natnl/libasusnatnl.so $(INSTALLDIR)/asusnatnl/usr/lib/libasusnatnl.so
+	$(STRIP) -s $(INSTALLDIR)/asusnatnl/usr/lib/libasusnatnl.so
+
+mastiff: shared nvram${BCMEX} wb
+	cd aaews && \
+        CC=$(CC) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
+        make mastiff
+
+mastiff-install:
+	install -d $(INSTALLDIR)/wb/usr/lib/
+	install -D aaews/mastiff $(INSTALLDIR)/wb/usr/sbin/mastiff
+	$(STRIP) -s $(INSTALLDIR)/wb/usr/sbin/mastiff
+
+mastiff-clean:
+	cd aaews && make clean 
+	echo $(INSTALLDIR)
+ifeq ($(RTCONFIG_BCMARM),y)
+LIBSTDCPP_PATH=$(shell dirname $(shell which $(CXX)))/../arm-brcm-linux-uclibcgnueabi/lib
+else
+LIBSTDCPP_PATH=$(TOP)/../../../tools/brcm/hndtools-mipsel-uclibc/lib
+endif
+
+
+#aaews: wb
+
+#wb: shared nvram curl-7.21.7 openssl libxml2 asusnatnl 
+aaews: wb
+	cd aaews && \
+        CC=$(CC) CXX=$(CXX) AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
+        make router 
+#make static-lib && \
+
+#$(MAKE)
+#CC=mipsel-uclibc-g++ AR=$(AR) RANLIB=$(RANLIB) LD=$(LD) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
+
+aaews-install:
+	install -d $(INSTALLDIR)/wb/usr/lib/
+	install -D wb/libws.so $(INSTALLDIR)/wb/usr/lib/libws.so
+	$(STRIP) -s $(INSTALLDIR)/wb/usr/lib/libws.so
+	install -D aaews/aaews $(INSTALLDIR)/wb/usr/sbin/aaews
+	$(STRIP) -s $(INSTALLDIR)/wb/usr/sbin/aaews
+	install -D $(LIBSTDCPP_PATH)/libstdc++.so.6 $(INSTALLDIR)/wb/usr/lib/libstdc++.so.6
+
+aaews-clean:
+	cd aaews && make clean
+
+#json-c-0.12
+json-c/stamp-h1:
+	cd $(TOP)/json-c && \
+	$(CONFIGURE) --enable-shared --disable-static \
+	ac_cv_func_realloc_0_nonnull=yes ac_cv_func_malloc_0_nonnull=yes \
+	CFLAGS="-Os -Wno-error $(EXTRACFLAGS)" \
+	LDFLAGS="$(EXTRALDFLAGS)"
+	touch $@
+
+json-c: json-c/stamp-h1
+	$(MAKE) -C $@
+
+json-c-install: json-c
+	install -D json-c/.libs/libjson-c.so.2.0.1 $(INSTALLDIR)/json-c/usr/lib/libjson-c.so.2.0.1
+	$(STRIP) $(INSTALLDIR)/json-c/usr/lib/libjson-c.so.2.0.1
+	cd $(INSTALLDIR)/json-c/usr/lib && ln -sf libjson-c.so.2.0.1 libjson-c.so
+	cd $(INSTALLDIR)/json-c/usr/lib && ln -sf libjson-c.so.2.0.1 libjson-c.so.2
+
+json-c-clean:
+	-@[ ! -f json-c/Makefile ] || $(MAKE) -C json-c clean
+	-@rm -f json-c/stamp-h1
+
+phddns/stamp-h1:
+	cd phddns && $(CONFIGURE) --prefix="" \
+		CFLAGS="-Os -I$(SRCBASE)/include -I$(TOP)/shared $(EXTRACFLAGS)" \
+		LDFLAGS="-L$(TOP)/nvram$(BCMEX) -L$(TOP)/shared $(if $(RTCONFIG_QTN),-L$(TOP)/libqcsapi_client) $(EXTRALDFLAGS)" \
+		LIBS="-lnvram -lshared $(if $(RTCONFIG_QTN),-lqcsapi_client)"
+	@touch $@
+
+phddns: phddns/stamp-h1
+	$(MAKE) -C phddns
+
+phddns-install: phddns
+	install -D phddns/src/phddns $(INSTALLDIR)/phddns/usr/sbin/phddns
+	$(STRIP) $(INSTALLDIR)/phddns/usr/sbin/phddns
+
+phddns-clean:
+	@[ ! -f phddns/Makefile ] || $(MAKE) -C phddns clean
+	@rm -f phddns/stamp-h1
 
 #
 # Generic rules

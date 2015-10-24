@@ -180,7 +180,11 @@ sighup(int sig)
 static void
 set_startup_time(void)
 {
+#if 0
 	startup_time = time(NULL);
+#else
+	startup_time = uptime();
+#endif
 }
 
 static void
@@ -313,6 +317,7 @@ check_db(sqlite3 *db, int new_db, pid_t *scanner_pid)
 	char **result;
 	int i, rows = 0;
 	int ret;
+	int retry_times;
 
 	if (!new_db)
 	{
@@ -364,9 +369,15 @@ rescan:
 				ret, DB_VERSION);
 		sqlite3_close(db);
 
-		snprintf(cmd, sizeof(cmd), "rm -rf %s/files.db %s/art_cache", db_path, db_path);
-		if (system(cmd) != 0)
+		retry_times = 0;
+retry:
+		snprintf(cmd, sizeof(cmd), "rm -rf %s/files.db %s/art_cache", db_path_spec, db_path_spec);
+		if (system(cmd) != 0) {
+			if (retry_times++ < 2)
+				goto retry;
+
 			DPRINTF(E_FATAL, L_GENERAL, "Failed to clean old file cache!  Exiting...\n");
+		}
 
 		open_db(&db);
 		if (CreateDatabase() != 0)
@@ -382,6 +393,7 @@ rescan:
 			sqlite3_close(db);
 			log_close();
 			freeoptions();
+			free(children);
 			exit(EXIT_SUCCESS);
 		}
 		else if (*scanner_pid < 0)
@@ -528,6 +540,8 @@ init(int argc, char **argv)
 	int ifaces = 0;
 	media_types types;
 	uid_t uid = 0;
+	char *ptr, *shift;
+	int retry_times;
 
 	/* first check if "-f" option is used */
 	for (i=2; i<argc; i++)
@@ -579,6 +593,8 @@ init(int argc, char **argv)
 						MAX_LAN_ADDR, word);
 					break;
 				}
+				while (isspace(*word))
+					word++;
 				runtime_vars.ifaces[ifaces++] = word;
 			}
 			break;
@@ -745,7 +761,8 @@ init(int argc, char **argv)
 				/* Symbolic username given, not UID. */
 				struct passwd *entry = getpwnam(ary_options[i].value);
 				if (!entry)
-					DPRINTF(E_FATAL, L_GENERAL, "Bad user '%s'.\n", argv[i]);
+					DPRINTF(E_FATAL, L_GENERAL, "Bad user '%s'.\n",
+						ary_options[i].value);
 				uid = entry->pw_uid;
 			}
 			break;
@@ -859,9 +876,22 @@ init(int argc, char **argv)
 			runtime_vars.port = -1; // triggers help display
 			break;
 		case 'R':
-			snprintf(buf, sizeof(buf), "rm -rf %s/files.db %s/art_cache", db_path, db_path);
-			if (system(buf) != 0)
+			memset(db_path_spec, 0, 256);
+			for(ptr = db_path, shift = db_path_spec; *ptr; ++ptr, ++shift){
+				if(strchr("()", *ptr))
+					*shift++ = '\\';
+				*shift = *ptr;
+			}
+
+			snprintf(buf, sizeof(buf), "rm -rf %s/files.db %s/art_cache", db_path_spec, db_path_spec);
+			retry_times = 0;
+retry:
+			if (system(buf) != 0) {
+				if (retry_times++ < 2)
+					goto retry;
+
 				DPRINTF(E_FATAL, L_GENERAL, "Failed to clean old file cache. EXITING\n");
+			}
 			break;
 		case 'u':
 			if (i+1 != argc)
@@ -1120,6 +1150,8 @@ RETURN:
 }
 #endif
 
+#define NOTIFY_INTERVAL	3
+
 /* === main === */
 /* process HTTP or SSDP requests */
 int
@@ -1193,6 +1225,7 @@ main(int argc, char **argv)
 	if (sssdp < 0)
 	{
 		DPRINTF(E_INFO, L_GENERAL, "Failed to open socket for receiving SSDP. Trying to use MiniSSDPd\n");
+		reload_ifaces(0);	/* populate lan_addr[0].str */
 		if (SubmitServicesToMiniSSDPD(lan_addr[0].str, runtime_vars.port) < 0)
 			DPRINTF(E_FATAL, L_GENERAL, "Failed to connect to MiniSSDPd. EXITING");
 	}
@@ -1222,13 +1255,18 @@ main(int argc, char **argv)
 #endif
 
 	reload_ifaces(0);
+#if 0
 	lastnotifytime.tv_sec = time(NULL) + runtime_vars.notify_interval;
+#else
+	lastnotifytime.tv_sec = uptime();
+#endif
 
 	/* main loop */
 	while (!quitting)
 	{
 		/* Check if we need to send SSDP NOTIFY messages and do it if
 		 * needed */
+#if 0
 		if (gettimeofday(&timeofday, 0) < 0)
 		{
 			DPRINTF(E_ERROR, L_GENERAL, "gettimeofday(): %s\n", strerror(errno));
@@ -1236,24 +1274,46 @@ main(int argc, char **argv)
 			timeout.tv_usec = 0;
 		}
 		else
+#else
+		timeofday.tv_sec = uptime();
+		timeofday.tv_usec = 0;
+#endif
 		{
 			/* the comparison is not very precise but who cares ? */
+#if 0
 			if (timeofday.tv_sec >= (lastnotifytime.tv_sec + runtime_vars.notify_interval))
+#else
+			if (timeofday.tv_sec >= (lastnotifytime.tv_sec + NOTIFY_INTERVAL))
+#endif
 			{
 				DPRINTF(E_DEBUG, L_SSDP, "Sending SSDP notifies\n");
 				for (i = 0; i < n_lan_addr; i++)
 				{
+#if 0
 					SendSSDPNotifies(lan_addr[i].snotify, lan_addr[i].str,
 						runtime_vars.port, runtime_vars.notify_interval);
+#else
+					SendSSDPNotifies(lan_addr[i].snotify, lan_addr[i].str,
+						runtime_vars.port, NOTIFY_INTERVAL);
+#endif
 				}
 				memcpy(&lastnotifytime, &timeofday, sizeof(struct timeval));
+#if 0
 				timeout.tv_sec = runtime_vars.notify_interval;
+#else
+				timeout.tv_sec = NOTIFY_INTERVAL;
+#endif
 				timeout.tv_usec = 0;
 			}
 			else
 			{
+#if 0
 				timeout.tv_sec = lastnotifytime.tv_sec + runtime_vars.notify_interval
 				                 - timeofday.tv_sec;
+#else
+				timeout.tv_sec = lastnotifytime.tv_sec + NOTIFY_INTERVAL
+						 - timeofday.tv_sec;
+#endif
 				if (timeofday.tv_usec > lastnotifytime.tv_usec)
 				{
 					timeout.tv_usec = 1000000 + lastnotifytime.tv_usec
@@ -1451,6 +1511,8 @@ shutdown:
 	if (sbeacon >= 0)
 		close(sbeacon);
 #endif
+	if (smonitor >= 0)
+		close(smonitor);
 	
 	for (i = 0; i < n_lan_addr; i++)
 	{

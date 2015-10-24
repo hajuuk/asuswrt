@@ -324,7 +324,7 @@ char *processPacket(int sockfd, char *pdubuf, unsigned short cli_port)
 		     return pdubuf_res;
 
 		case NET_CMD_ID_GETINFO:
-			_dprintf("NET CMD GETINFO\n");
+			//_dprintf("NET CMD GETINFO\n");
 		     ginfo=(PKT_GET_INFO *)(pdubuf_res+sizeof(IBOX_COMM_PKT_RES));
 		     memset(ginfo, 0, sizeof(ginfo));
 #if 0
@@ -366,6 +366,7 @@ char *processPacket(int sockfd, char *pdubuf, unsigned short cli_port)
 		     strcpy(ginfo->ProductID, productid_g);	// disable for tmp
 		     strcpy(ginfo->FirmwareVersion, firmver_g); // disable for tmp
 		     memcpy(ginfo->MacAddress, mac, 6);
+		     ginfo->OperationMode = (char)nvram_get_int("sw_mode");
 
 #ifdef WAVESERVER    // eric++
 	     	     // search /tmp/waveserver and get information

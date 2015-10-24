@@ -165,9 +165,7 @@ start_vpnc(void)
 			fprintf(fp, "nomppe nomppc\n");
 		} else
 		if (nvram_match(strcat_r(prefix, "pptp_options_x", tmp), "+mppe-40")) {
-			fprintf(fp, "nomppe-56\n"
-                                    "nomppe-128\n"
-				    "require-mppe\n"
+			fprintf(fp, "require-mppe\n"
 				    "require-mppe-40\n");
 		} else
 		if (nvram_match(strcat_r(prefix, "pptp_options_x", tmp), "+mppe-56")) {
@@ -533,7 +531,7 @@ vpnc_ipup_main(int argc, char **argv)
 	if ((value = getenv("IPLOCAL"))) {
 		if (nvram_invmatch(strcat_r(prefix, "ipaddr", tmp), value))
 			ifconfig(vpnc_ifname, IFUP, "0.0.0.0", NULL);
-		_ifconfig(vpnc_ifname, IFUP, value, "255.255.255.255", getenv("IPREMOTE"));
+		_ifconfig(vpnc_ifname, IFUP, value, "255.255.255.255", getenv("IPREMOTE"), 0);
 		nvram_set(strcat_r(prefix, "ipaddr", tmp), value);
 		nvram_set(strcat_r(prefix, "netmask", tmp), "255.255.255.255");
 	}

@@ -21,6 +21,7 @@ static const struct model_s model_list[] = {
 #endif
 	{ "EA-N66",	MODEL_EAN66	},
 	{ "RT-N11P",	MODEL_RTN11P	},
+	{ "RT-N300",	MODEL_RTN300	},
 	{ "RT-N13U",	MODEL_RTN13U	},
 	{ "RT-N14U",	MODEL_RTN14U	},
 	{ "RT-AC52U",	MODEL_RTAC52U	},
@@ -37,6 +38,9 @@ static const struct model_s model_list[] = {
 	{ "RT-AC55U",	MODEL_RTAC55U	},
 	{ "RT-AC55UHP",	MODEL_RTAC55UHP	},
 	{ "4G-AC55U",	MODEL_RT4GAC55U	},
+	{ "PL-N12",	MODEL_PLN12	},
+	{ "PL-AC56",	MODEL_PLAC56	},
+	{ "PL-AC66U",	MODEL_PLAC66U	},
 #else
 	{ "RT-N66U",	MODEL_RTN66U	},
 	{ "RT-AC56S",	MODEL_RTAC56S	},
@@ -50,6 +54,7 @@ static const struct model_s model_list[] = {
 	{ "RT-AC53U",	MODEL_RTAC53U	},
 	{ "RT-AC3200",	MODEL_RTAC3200	},
 	{ "RT-AC88U",	MODEL_RTAC88U	},
+	{ "RT-AC3100",	MODEL_RTAC3100	},
 	{ "RT-AC5300",	MODEL_RTAC5300	},
 	{ "RT-N53",	MODEL_RTN53	},
 	{ "RT-N16",	MODEL_RTN16	},
@@ -71,6 +76,8 @@ static const struct model_s model_list[] = {
 	{ "RT-N10D1",	MODEL_RTN10D1	},
 	{ "RT-N10PV2",	MODEL_RTN10PV2	},
 	{ "DSL-AC68U",	MODEL_DSLAC68U	},
+	{ "RT-AC1200G", MODEL_RTAC1200G	},
+	{ "RT-AC1200G+", MODEL_RTAC1200GP},
 #endif	/* !RTCONFIG_RALINK */
 	{ NULL, 0 },
 };

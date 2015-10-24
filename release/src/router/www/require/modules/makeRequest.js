@@ -18,7 +18,7 @@ define(function(){
 			xmlHttp.onreadystatechange = function(){
 				if(xmlHttp.readyState == 4){
 					if(xmlHttp.status == 200){
-						callBackSuccess(xmlHttp.responseXML);
+						callBackSuccess(xmlHttp);
 					}
 					else{
 						makeRequest._notSuccessCount++;
@@ -27,7 +27,7 @@ define(function(){
 		 		}
 			}
 
-			xmlHttp.open('GET', url, true);
+			xmlHttp.open('GET', url + "?hash=" + Math.random().toString(), true);
 			xmlHttp.send(null);
 		}
 	};

@@ -328,6 +328,7 @@ inotify_insert_file(char * name, const char * path)
 			if( !is_audio(path) &&
 			    !is_video(path) &&
 			    !is_playlist(path) )
+				return -1;
 			break;
 		case TYPE_AUDIO|TYPE_IMAGES:
 			if( !is_image(path) &&
@@ -426,7 +427,7 @@ inotify_insert_file(char * name, const char * path)
 		sqlite3_free(id);
 		if( (is_audio(path) || is_playlist(path)) && next_pl_fill != 1 )
 		{
-			next_pl_fill = time(NULL) + 120; // Schedule a playlist scan for 2 minutes from now.
+			next_pl_fill = uptime() + 120; // Schedule a playlist scan for 2 minutes from now.
 			//DEBUG DPRINTF(E_WARN, L_INOTIFY,  "Playlist scan scheduled for %s", ctime(&next_pl_fill));
 		}
 	}
@@ -673,7 +674,7 @@ start_inotify()
                 length = poll(pollfds, 1, timeout);
 		if( !length )
 		{
-			if( next_pl_fill && (time(NULL) >= next_pl_fill) )
+			if( next_pl_fill && (uptime() >= next_pl_fill) )
 			{
 				fill_playlists();
 				next_pl_fill = 0;
@@ -715,9 +716,10 @@ start_inotify()
 				else if ( (event->mask & (IN_CLOSE_WRITE|IN_MOVED_TO|IN_CREATE)) &&
 				          (lstat(path_buf, &st) == 0) )
 				{
-					if( S_ISLNK(st.st_mode) )
+					if( (event->mask & (IN_MOVED_TO|IN_CREATE)) && (S_ISLNK(st.st_mode) || st.st_nlink > 1) )
 					{
-						DPRINTF(E_DEBUG, L_INOTIFY, "The symbolic link %s was %s.\n",
+						DPRINTF(E_DEBUG, L_INOTIFY, "The %s link %s was %s.\n",
+							(S_ISLNK(st.st_mode) ? "symbolic" : "hard"),
 							path_buf, (event->mask & IN_MOVED_TO ? "moved here" : "created"));
 						if( stat(path_buf, &st) == 0 && S_ISDIR(st.st_mode) )
 							inotify_insert_directory(pollfds[0].fd, esc_name, path_buf);
